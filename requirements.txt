@@ -8,7 +8,7 @@ torch>=2.2,<3.0
 torchvision>=0.17,<1.0
 
 # Computer vision / image processing
-opencv-python>=4.9,<5.0
+opencv-python-headless>=4.9,<5.0
 Pillow>=10.2,<12.0
 
 # Explainable AI / visualization
