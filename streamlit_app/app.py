@@ -1,7 +1,7 @@
 """
 RoadXAI Streamlit Application.
 
-End-to-end image analysis interface for:
+Streamlit Cloud-safe end-to-end image analysis interface for:
 - road-defect segmentation
 - probability visualization
 - engineering measurements
@@ -69,12 +69,11 @@ generate_3d_visualization = (
 )
 
 
-CHECKPOINT_PATH = (
-    PROJECT_ROOT
-    / "checkpoints"
-    / "crack500"
-    / "best.pt"
-)
+CHECKPOINTS = {
+    "CRACK500": PROJECT_ROOT / "checkpoints" / "crack500" / "best.pt",
+    "Pothole YOLOv8": PROJECT_ROOT / "checkpoints" / "pothole_yolov8" / "best.pt",
+    "Public Pothole": PROJECT_ROOT / "checkpoints" / "public_pothole" / "best.pt",
+}
 
 REPORT_DIR = PROJECT_ROOT / "reports"
 
@@ -87,15 +86,20 @@ st.set_page_config(
 
 
 @st.cache_resource
-def load_roadxai_model():
-    """Load the trained CRACK500 model once."""
-    model = build_model(
-        base_channels=16
-    )
+def load_roadxai_model(checkpoint_path: str):
+    """Load one RoadXAI checkpoint once per model selection."""
+    checkpoint = Path(checkpoint_path)
+
+    if not checkpoint.is_file():
+        raise FileNotFoundError(
+            f"Model checkpoint not found: {checkpoint}"
+        )
+
+    model = build_model(base_channels=16)
 
     return load_model(
         model,
-        CHECKPOINT_PATH,
+        checkpoint,
         device="cpu",
     )
 
@@ -656,10 +660,23 @@ def clear_stale_analysis_state(
 def main():
     create_app_header()
 
-    if not CHECKPOINT_PATH.exists():
+    st.sidebar.subheader("Model")
+
+    model_name = st.sidebar.selectbox(
+        "Defect model",
+        options=list(CHECKPOINTS.keys()),
+        index=0,
+        help=(
+            "Select which trained segmentation model should analyze "
+            "the uploaded image."
+        ),
+    )
+
+    checkpoint_path = CHECKPOINTS[model_name]
+
+    if not checkpoint_path.is_file():
         st.error(
-            "Model checkpoint not found: "
-            f"{CHECKPOINT_PATH}"
+            f"The selected model checkpoint is missing: {checkpoint_path}"
         )
         st.stop()
 
@@ -706,7 +723,7 @@ def main():
             image_key
         )
 
-        model = load_roadxai_model()
+        model = load_roadxai_model(str(checkpoint_path))
 
         inference = run_inference(
             model=model,
@@ -799,12 +816,24 @@ def main():
             "severity assessment below."
         )
 
+        st.info(
+            "RoadXAI uses a binary segmentation model for the selected "
+            "dataset: it identifies defect regions but does not classify "
+            "each region as a specific defect type."
+        )
+
         # -----------------------------------------------------
         # Inference Summary
         # -----------------------------------------------------
 
         st.subheader(
             "Inference Summary"
+        )
+
+        st.caption(
+            f"Model: **{model_name}** | "
+            f"Checkpoint: `{checkpoint_path.relative_to(PROJECT_ROOT)}` | "
+            f"Device: **CPU**"
         )
 
         display_inference_summary(
@@ -1353,8 +1382,8 @@ def main():
                             uploaded_file.name
                         ),
                         title=(
-                            "RoadXAI Road Defect "
-                            "Assessment"
+                            f"RoadXAI Road Defect Assessment — "
+                            f"{model_name}"
                         ),
                     )
 
