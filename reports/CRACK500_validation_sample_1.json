@@ -1,0 +1,122 @@
+{
+    "report_id": "ROADXAI-20260912061041998955",
+    "generated_at": "2026-09-12T06:10:41.998955+00:00",
+    "title": "RoadXAI CRACK500 Road Defect Assessment",
+    "image_name": "CRACK500_validation_sample_1",
+    "sections": [
+        {
+            "title": "Executive Summary",
+            "content": "RoadXAI automated road-defect assessment. Detected severity: [{'level': 'high', 'score': 54.0771484375, 'area_ratio': 0.0540771484375, 'explanation': 'Significant defect with substantial road-surface impact.'}]. Road-health assessment: {'score': 94.59228515625, 'condition': 'Excellent', 'defect_area_ratio': 0.0540771484375, 'defect_count': 1}.",
+            "data": {
+                "severity": [
+                    {
+                        "level": "high",
+                        "score": 54.0771484375,
+                        "area_ratio": 0.0540771484375,
+                        "explanation": "Significant defect with substantial road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 94.59228515625,
+                    "condition": "Excellent",
+                    "defect_area_ratio": 0.0540771484375,
+                    "defect_count": 1
+                }
+            }
+        },
+        {
+            "title": "Defect Detection",
+            "content": "The segmentation model identified 0.00% of the analyzed image area as defective.",
+            "data": {}
+        },
+        {
+            "title": "Engineering Measurements",
+            "content": "Engineering analysis identified 1 measured defect region(s).",
+            "data": {
+                "defects": [
+                    {
+                        "area_pixels": 3544.0,
+                        "length_pixels": 123.0,
+                        "width_pixels": 61.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 124.0,
+                        "bounding_box_height_pixels": 62.0,
+                        "centroid_x": 214.89145974416851,
+                        "centroid_y": 20.80046087283672
+                    }
+                ],
+                "defect_count": 1
+            }
+        },
+        {
+            "title": "Severity Assessment",
+            "content": "Severity classification: [{'level': 'high', 'score': 54.0771484375, 'area_ratio': 0.0540771484375, 'explanation': 'Significant defect with substantial road-surface impact.'}]. Road health: {'score': 94.59228515625, 'condition': 'Excellent', 'defect_area_ratio': 0.0540771484375, 'defect_count': 1}.",
+            "data": {
+                "severity": [
+                    {
+                        "level": "high",
+                        "score": 54.0771484375,
+                        "area_ratio": 0.0540771484375,
+                        "explanation": "Significant defect with substantial road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 94.59228515625,
+                    "condition": "Excellent",
+                    "defect_area_ratio": 0.0540771484375,
+                    "defect_count": 1
+                },
+                "condition": null
+            }
+        },
+        {
+            "title": "Repair Cost Estimate",
+            "content": "Estimated repair cost information is included in the report data.",
+            "data": {
+                "estimate": {
+                    "estimated_area_m2": 0.0,
+                    "rate_per_m2": 0.0,
+                    "estimated_cost": 0.0,
+                    "currency": "INR"
+                }
+            }
+        },
+        {
+            "title": "Explainable AI",
+            "content": "Explainability was generated using gradcam.",
+            "data": {
+                "method": "gradcam"
+            }
+        },
+        {
+            "title": "3D Visualization",
+            "content": "A 3D representation of the detected defect geometry was generated.",
+            "data": {}
+        },
+        {
+            "title": "Recommendations",
+            "content": "Schedule high-priority inspection and maintenance.",
+            "data": {
+                "recommendation": "Schedule high-priority inspection and maintenance."
+            }
+        }
+    ],
+    "summary": {
+        "severity": [
+            {
+                "level": "high",
+                "score": 54.0771484375,
+                "area_ratio": 0.0540771484375,
+                "explanation": "Significant defect with substantial road-surface impact."
+            }
+        ],
+        "road_health": {
+            "score": 94.59228515625,
+            "condition": "Excellent",
+            "defect_area_ratio": 0.0540771484375,
+            "defect_count": 1
+        }
+    }
+}

@@ -1,0 +1,592 @@
+{
+    "report_id": "ROADXAI-20260912070035899981",
+    "generated_at": "2026-09-12T07:00:35.905190+00:00",
+    "title": "RoadXAI Road Defect Assessment",
+    "image_name": "Screenshot 2026-08-28 201716.png",
+    "sections": [
+        {
+            "title": "Executive Summary",
+            "content": "RoadXAI automated road-defect assessment. Model confidence: 69.34%. Detected severity: [{'level': 'low', 'score': 8.96453857421875, 'area_ratio': 0.00896453857421875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.81524658203125, 'area_ratio': 0.00281524658203125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.3651123046875, 'area_ratio': 0.0023651123046875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.3193359375, 'area_ratio': 0.0023193359375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.23541259765625, 'area_ratio': 0.00223541259765625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.9683837890625, 'area_ratio': 0.0019683837890625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.88446044921875, 'area_ratio': 0.00188446044921875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.59454345703125, 'area_ratio': 0.00159454345703125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.15203857421875, 'area_ratio': 0.00115203857421875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.0986328125, 'area_ratio': 0.0010986328125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.0833740234375, 'area_ratio': 0.0010833740234375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.90789794921875, 'area_ratio': 0.00090789794921875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.7476806640625, 'area_ratio': 0.0007476806640625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.67138671875, 'area_ratio': 0.00067138671875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.38909912109375, 'area_ratio': 0.00038909912109375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.2593994140625, 'area_ratio': 0.0002593994140625, 'explanation': 'Small defect with relatively limited road-surface impact.'}]. Road-health assessment: {'score': 96.954345703125, 'condition': 'Excellent', 'defect_area_ratio': 0.03045654296875, 'defect_count': 16}.",
+            "data": {
+                "model_confidence": 0.6933861970901489,
+                "severity": [
+                    {
+                        "level": "low",
+                        "score": 8.96453857421875,
+                        "area_ratio": 0.00896453857421875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.81524658203125,
+                        "area_ratio": 0.00281524658203125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.3651123046875,
+                        "area_ratio": 0.0023651123046875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.3193359375,
+                        "area_ratio": 0.0023193359375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.23541259765625,
+                        "area_ratio": 0.00223541259765625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.9683837890625,
+                        "area_ratio": 0.0019683837890625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.88446044921875,
+                        "area_ratio": 0.00188446044921875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.59454345703125,
+                        "area_ratio": 0.00159454345703125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.15203857421875,
+                        "area_ratio": 0.00115203857421875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.0986328125,
+                        "area_ratio": 0.0010986328125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.0833740234375,
+                        "area_ratio": 0.0010833740234375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.90789794921875,
+                        "area_ratio": 0.00090789794921875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.7476806640625,
+                        "area_ratio": 0.0007476806640625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.67138671875,
+                        "area_ratio": 0.00067138671875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.38909912109375,
+                        "area_ratio": 0.00038909912109375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.2593994140625,
+                        "area_ratio": 0.0002593994140625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 96.954345703125,
+                    "condition": "Excellent",
+                    "defect_area_ratio": 0.03045654296875,
+                    "defect_count": 16
+                }
+            }
+        },
+        {
+            "title": "Defect Detection",
+            "content": "The segmentation model identified 3.71% of the analyzed image area as defective. Estimated prediction confidence was 69.34%.",
+            "data": {
+                "image_height": 256,
+                "image_width": 256,
+                "defect_pixels": 2431,
+                "total_pixels": 65536,
+                "defect_percentage": 3.70941162109375,
+                "confidence": 0.6933861970901489
+            }
+        },
+        {
+            "title": "Engineering Measurements",
+            "content": "Engineering analysis identified 16 measured defect region(s).",
+            "data": {
+                "defects": [
+                    {
+                        "area_pixels": 587.5,
+                        "length_pixels": 73.64842224121094,
+                        "width_pixels": 18.650691986083984,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 62.0,
+                        "bounding_box_height_pixels": 45.0,
+                        "centroid_x": 222.46978723404254,
+                        "centroid_y": 134.28851063829788
+                    },
+                    {
+                        "area_pixels": 184.5,
+                        "length_pixels": 34.891963958740234,
+                        "width_pixels": 11.180171012878418,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 35.0,
+                        "bounding_box_height_pixels": 15.0,
+                        "centroid_x": 24.251129177958443,
+                        "centroid_y": 141.88708220415535
+                    },
+                    {
+                        "area_pixels": 155.0,
+                        "length_pixels": 21.93105697631836,
+                        "width_pixels": 10.569865226745605,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 20.0,
+                        "bounding_box_height_pixels": 17.0,
+                        "centroid_x": 110.54408602150536,
+                        "centroid_y": 202.96451612903226
+                    },
+                    {
+                        "area_pixels": 152.0,
+                        "length_pixels": 31.97635841369629,
+                        "width_pixels": 12.45233154296875,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 14.0,
+                        "bounding_box_height_pixels": 33.0,
+                        "centroid_x": 153.1754385964912,
+                        "centroid_y": 34.4188596491228
+                    },
+                    {
+                        "area_pixels": 146.5,
+                        "length_pixels": 26.385601043701172,
+                        "width_pixels": 8.497057914733887,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 17.0,
+                        "bounding_box_height_pixels": 25.0,
+                        "centroid_x": 79.77474402730375,
+                        "centroid_y": 226.32650739476674
+                    },
+                    {
+                        "area_pixels": 129.0,
+                        "length_pixels": 16.0,
+                        "width_pixels": 11.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 12.0,
+                        "bounding_box_height_pixels": 17.0,
+                        "centroid_x": 83.89793281653746,
+                        "centroid_y": 200.1485788113695
+                    },
+                    {
+                        "area_pixels": 123.5,
+                        "length_pixels": 19.091880798339844,
+                        "width_pixels": 9.192387580871582,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 14.0,
+                        "bounding_box_height_pixels": 17.0,
+                        "centroid_x": 122.43454790823212,
+                        "centroid_y": 173.77462887989202
+                    },
+                    {
+                        "area_pixels": 104.5,
+                        "length_pixels": 22.734121322631836,
+                        "width_pixels": 12.67684555053711,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 16.0,
+                        "bounding_box_height_pixels": 23.0,
+                        "centroid_x": 59.473684210526315,
+                        "centroid_y": 122.0207336523126
+                    },
+                    {
+                        "area_pixels": 75.5,
+                        "length_pixels": 11.180339813232422,
+                        "width_pixels": 10.28591251373291,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 12.0,
+                        "bounding_box_height_pixels": 12.0,
+                        "centroid_x": 122.51214128035319,
+                        "centroid_y": 95.63796909492272
+                    },
+                    {
+                        "area_pixels": 72.0,
+                        "length_pixels": 10.0,
+                        "width_pixels": 10.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 11.0,
+                        "bounding_box_height_pixels": 11.0,
+                        "centroid_x": 210.03472222222223,
+                        "centroid_y": 226.76388888888889
+                    },
+                    {
+                        "area_pixels": 71.0,
+                        "length_pixels": 16.91835594177246,
+                        "width_pixels": 6.1017022132873535,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 14.0,
+                        "bounding_box_height_pixels": 12.0,
+                        "centroid_x": 76.47183098591549,
+                        "centroid_y": 147.45070422535213
+                    },
+                    {
+                        "area_pixels": 59.5,
+                        "length_pixels": 10.0,
+                        "width_pixels": 9.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 11.0,
+                        "bounding_box_height_pixels": 10.0,
+                        "centroid_x": 133.6890756302521,
+                        "centroid_y": 78.93557422969187
+                    },
+                    {
+                        "area_pixels": 49.0,
+                        "length_pixels": 11.094003677368164,
+                        "width_pixels": 5.824352264404297,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 9.0,
+                        "bounding_box_height_pixels": 11.0,
+                        "centroid_x": 131.9795918367347,
+                        "centroid_y": 136.578231292517
+                    },
+                    {
+                        "area_pixels": 44.0,
+                        "length_pixels": 13.0,
+                        "width_pixels": 6.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 7.0,
+                        "bounding_box_height_pixels": 14.0,
+                        "centroid_x": 86.60606060606061,
+                        "centroid_y": 163.9810606060606
+                    },
+                    {
+                        "area_pixels": 25.5,
+                        "length_pixels": 6.0,
+                        "width_pixels": 5.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 6.0,
+                        "bounding_box_height_pixels": 7.0,
+                        "centroid_x": 76.66013071895425,
+                        "centroid_y": 250.03267973856208
+                    },
+                    {
+                        "area_pixels": 17.0,
+                        "length_pixels": 14.271246910095215,
+                        "width_pixels": 3.121835708618164,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 13.0,
+                        "bounding_box_height_pixels": 10.0,
+                        "centroid_x": 177.72549019607843,
+                        "centroid_y": 89.73529411764706
+                    }
+                ],
+                "defect_count": 16
+            }
+        },
+        {
+            "title": "Severity Assessment",
+            "content": "Severity classification: [{'level': 'low', 'score': 8.96453857421875, 'area_ratio': 0.00896453857421875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.81524658203125, 'area_ratio': 0.00281524658203125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.3651123046875, 'area_ratio': 0.0023651123046875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.3193359375, 'area_ratio': 0.0023193359375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 2.23541259765625, 'area_ratio': 0.00223541259765625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.9683837890625, 'area_ratio': 0.0019683837890625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.88446044921875, 'area_ratio': 0.00188446044921875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.59454345703125, 'area_ratio': 0.00159454345703125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.15203857421875, 'area_ratio': 0.00115203857421875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.0986328125, 'area_ratio': 0.0010986328125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 1.0833740234375, 'area_ratio': 0.0010833740234375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.90789794921875, 'area_ratio': 0.00090789794921875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.7476806640625, 'area_ratio': 0.0007476806640625, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.67138671875, 'area_ratio': 0.00067138671875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.38909912109375, 'area_ratio': 0.00038909912109375, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 0.2593994140625, 'area_ratio': 0.0002593994140625, 'explanation': 'Small defect with relatively limited road-surface impact.'}]. Road health: {'score': 96.954345703125, 'condition': 'Excellent', 'defect_area_ratio': 0.03045654296875, 'defect_count': 16}.",
+            "data": {
+                "severity": [
+                    {
+                        "level": "low",
+                        "score": 8.96453857421875,
+                        "area_ratio": 0.00896453857421875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.81524658203125,
+                        "area_ratio": 0.00281524658203125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.3651123046875,
+                        "area_ratio": 0.0023651123046875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.3193359375,
+                        "area_ratio": 0.0023193359375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 2.23541259765625,
+                        "area_ratio": 0.00223541259765625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.9683837890625,
+                        "area_ratio": 0.0019683837890625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.88446044921875,
+                        "area_ratio": 0.00188446044921875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.59454345703125,
+                        "area_ratio": 0.00159454345703125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.15203857421875,
+                        "area_ratio": 0.00115203857421875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.0986328125,
+                        "area_ratio": 0.0010986328125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 1.0833740234375,
+                        "area_ratio": 0.0010833740234375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.90789794921875,
+                        "area_ratio": 0.00090789794921875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.7476806640625,
+                        "area_ratio": 0.0007476806640625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.67138671875,
+                        "area_ratio": 0.00067138671875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.38909912109375,
+                        "area_ratio": 0.00038909912109375,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 0.2593994140625,
+                        "area_ratio": 0.0002593994140625,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 96.954345703125,
+                    "condition": "Excellent",
+                    "defect_area_ratio": 0.03045654296875,
+                    "defect_count": 16
+                },
+                "condition": null
+            }
+        },
+        {
+            "title": "Repair Cost Estimate",
+            "content": "Estimated repair cost information is included in the report data.",
+            "data": {
+                "estimate": {
+                    "estimated_area_m2": 0.0,
+                    "rate_per_m2": 0.0,
+                    "estimated_cost": 0.0,
+                    "currency": "INR"
+                }
+            }
+        },
+        {
+            "title": "Explainable AI",
+            "content": "Explainability was generated using Grad-CAM.",
+            "data": {
+                "method": "Grad-CAM",
+                "heatmap_shape": [
+                    256,
+                    256
+                ]
+            }
+        },
+        {
+            "title": "3D Visualization",
+            "content": "A 3D representation of the detected defect geometry was generated.",
+            "data": {
+                "heightmap_shape": [
+                    256,
+                    256
+                ],
+                "vertex_count": 65536,
+                "face_count": 130050
+            }
+        },
+        {
+            "title": "Recommendations",
+            "content": "Continue monitoring and include the location in routine maintenance.",
+            "data": {
+                "recommendation": "Continue monitoring and include the location in routine maintenance."
+            }
+        }
+    ],
+    "summary": {
+        "model_confidence": 0.6933861970901489,
+        "severity": [
+            {
+                "level": "low",
+                "score": 8.96453857421875,
+                "area_ratio": 0.00896453857421875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 2.81524658203125,
+                "area_ratio": 0.00281524658203125,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 2.3651123046875,
+                "area_ratio": 0.0023651123046875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 2.3193359375,
+                "area_ratio": 0.0023193359375,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 2.23541259765625,
+                "area_ratio": 0.00223541259765625,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.9683837890625,
+                "area_ratio": 0.0019683837890625,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.88446044921875,
+                "area_ratio": 0.00188446044921875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.59454345703125,
+                "area_ratio": 0.00159454345703125,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.15203857421875,
+                "area_ratio": 0.00115203857421875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.0986328125,
+                "area_ratio": 0.0010986328125,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 1.0833740234375,
+                "area_ratio": 0.0010833740234375,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 0.90789794921875,
+                "area_ratio": 0.00090789794921875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 0.7476806640625,
+                "area_ratio": 0.0007476806640625,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 0.67138671875,
+                "area_ratio": 0.00067138671875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 0.38909912109375,
+                "area_ratio": 0.00038909912109375,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 0.2593994140625,
+                "area_ratio": 0.0002593994140625,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            }
+        ],
+        "road_health": {
+            "score": 96.954345703125,
+            "condition": "Excellent",
+            "defect_area_ratio": 0.03045654296875,
+            "defect_count": 16
+        }
+    }
+}

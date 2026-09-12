@@ -1,0 +1,20 @@
+@"
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+datasets/
+runs/
+results/
+
+.streamlit/
+.env
+.env.*
+*.log
+
+reports/*.pdf
+reports/*.txt
+"@ | Set-Content .gitignore
+datasets/

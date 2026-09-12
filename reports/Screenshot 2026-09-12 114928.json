@@ -1,0 +1,234 @@
+{
+    "report_id": "ROADXAI-20260912062919316662",
+    "generated_at": "2026-09-12T06:29:19.316662+00:00",
+    "title": "RoadXAI Road Defect Assessment",
+    "image_name": "Screenshot 2026-09-12 114928.png",
+    "sections": [
+        {
+            "title": "Executive Summary",
+            "content": "RoadXAI automated road-defect assessment. Model confidence: 85.57%. Detected severity: [{'level': 'high', 'score': 50.47607421875, 'area_ratio': 0.05047607421875, 'explanation': 'Significant defect with substantial road-surface impact.'}, {'level': 'moderate', 'score': 45.70770263671875, 'area_ratio': 0.04570770263671875, 'explanation': 'Noticeable defect requiring inspection and planned maintenance.'}, {'level': 'low', 'score': 7.049560546875, 'area_ratio': 0.007049560546875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 4.03594970703125, 'area_ratio': 0.00403594970703125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 3.41796875, 'area_ratio': 0.00341796875, 'explanation': 'Small defect with relatively limited road-surface impact.'}]. Road-health assessment: {'score': 88.9312744140625, 'condition': 'Good', 'defect_area_ratio': 0.110687255859375, 'defect_count': 5}.",
+            "data": {
+                "model_confidence": 0.8556888103485107,
+                "severity": [
+                    {
+                        "level": "high",
+                        "score": 50.47607421875,
+                        "area_ratio": 0.05047607421875,
+                        "explanation": "Significant defect with substantial road-surface impact."
+                    },
+                    {
+                        "level": "moderate",
+                        "score": 45.70770263671875,
+                        "area_ratio": 0.04570770263671875,
+                        "explanation": "Noticeable defect requiring inspection and planned maintenance."
+                    },
+                    {
+                        "level": "low",
+                        "score": 7.049560546875,
+                        "area_ratio": 0.007049560546875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 4.03594970703125,
+                        "area_ratio": 0.00403594970703125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 3.41796875,
+                        "area_ratio": 0.00341796875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 88.9312744140625,
+                    "condition": "Good",
+                    "defect_area_ratio": 0.110687255859375,
+                    "defect_count": 5
+                }
+            }
+        },
+        {
+            "title": "Defect Detection",
+            "content": "The segmentation model identified 0.00% of the analyzed image area as defective. Estimated prediction confidence was 85.57%.",
+            "data": {
+                "confidence": 0.8556888103485107
+            }
+        },
+        {
+            "title": "Engineering Measurements",
+            "content": "Engineering analysis identified 5 measured defect region(s).",
+            "data": {
+                "defects": [
+                    {
+                        "area_pixels": 3308.0,
+                        "length_pixels": 171.0,
+                        "width_pixels": 33.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 172.0,
+                        "bounding_box_height_pixels": 34.0,
+                        "centroid_x": 64.58968158000806,
+                        "centroid_y": 34.36059048770657
+                    },
+                    {
+                        "area_pixels": 2995.5,
+                        "length_pixels": 126.73663330078125,
+                        "width_pixels": 55.1724739074707,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 106.0,
+                        "bounding_box_height_pixels": 101.0,
+                        "centroid_x": 132.07967506815777,
+                        "centroid_y": 158.51972403049018
+                    },
+                    {
+                        "area_pixels": 462.0,
+                        "length_pixels": 68.46717071533203,
+                        "width_pixels": 10.294881820678711,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 61.0,
+                        "bounding_box_height_pixels": 36.0,
+                        "centroid_x": 32.34595959595959,
+                        "centroid_y": 134.02777777777777
+                    },
+                    {
+                        "area_pixels": 264.5,
+                        "length_pixels": 49.60919952392578,
+                        "width_pixels": 9.708084106445312,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 50.0,
+                        "bounding_box_height_pixels": 15.0,
+                        "centroid_x": 190.11909262759923,
+                        "centroid_y": 74.84436042848141
+                    },
+                    {
+                        "area_pixels": 224.0,
+                        "length_pixels": 16.0,
+                        "width_pixels": 15.0,
+                        "area_m2": null,
+                        "length_m": null,
+                        "width_m": null,
+                        "bounding_box_width_pixels": 17.0,
+                        "bounding_box_height_pixels": 16.0,
+                        "centroid_x": 246.39211309523807,
+                        "centroid_y": 17.377232142857142
+                    }
+                ],
+                "defect_count": 5
+            }
+        },
+        {
+            "title": "Severity Assessment",
+            "content": "Severity classification: [{'level': 'high', 'score': 50.47607421875, 'area_ratio': 0.05047607421875, 'explanation': 'Significant defect with substantial road-surface impact.'}, {'level': 'moderate', 'score': 45.70770263671875, 'area_ratio': 0.04570770263671875, 'explanation': 'Noticeable defect requiring inspection and planned maintenance.'}, {'level': 'low', 'score': 7.049560546875, 'area_ratio': 0.007049560546875, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 4.03594970703125, 'area_ratio': 0.00403594970703125, 'explanation': 'Small defect with relatively limited road-surface impact.'}, {'level': 'low', 'score': 3.41796875, 'area_ratio': 0.00341796875, 'explanation': 'Small defect with relatively limited road-surface impact.'}]. Road health: {'score': 88.9312744140625, 'condition': 'Good', 'defect_area_ratio': 0.110687255859375, 'defect_count': 5}.",
+            "data": {
+                "severity": [
+                    {
+                        "level": "high",
+                        "score": 50.47607421875,
+                        "area_ratio": 0.05047607421875,
+                        "explanation": "Significant defect with substantial road-surface impact."
+                    },
+                    {
+                        "level": "moderate",
+                        "score": 45.70770263671875,
+                        "area_ratio": 0.04570770263671875,
+                        "explanation": "Noticeable defect requiring inspection and planned maintenance."
+                    },
+                    {
+                        "level": "low",
+                        "score": 7.049560546875,
+                        "area_ratio": 0.007049560546875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 4.03594970703125,
+                        "area_ratio": 0.00403594970703125,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    },
+                    {
+                        "level": "low",
+                        "score": 3.41796875,
+                        "area_ratio": 0.00341796875,
+                        "explanation": "Small defect with relatively limited road-surface impact."
+                    }
+                ],
+                "road_health": {
+                    "score": 88.9312744140625,
+                    "condition": "Good",
+                    "defect_area_ratio": 0.110687255859375,
+                    "defect_count": 5
+                },
+                "condition": null
+            }
+        },
+        {
+            "title": "Repair Cost Estimate",
+            "content": "Estimated repair cost information is included in the report data.",
+            "data": {
+                "estimate": {
+                    "estimated_area_m2": 0.0,
+                    "rate_per_m2": 0.0,
+                    "estimated_cost": 0.0,
+                    "currency": "INR"
+                }
+            }
+        },
+        {
+            "title": "Recommendations",
+            "content": "Schedule high-priority inspection and maintenance.",
+            "data": {
+                "recommendation": "Schedule high-priority inspection and maintenance."
+            }
+        }
+    ],
+    "summary": {
+        "model_confidence": 0.8556888103485107,
+        "severity": [
+            {
+                "level": "high",
+                "score": 50.47607421875,
+                "area_ratio": 0.05047607421875,
+                "explanation": "Significant defect with substantial road-surface impact."
+            },
+            {
+                "level": "moderate",
+                "score": 45.70770263671875,
+                "area_ratio": 0.04570770263671875,
+                "explanation": "Noticeable defect requiring inspection and planned maintenance."
+            },
+            {
+                "level": "low",
+                "score": 7.049560546875,
+                "area_ratio": 0.007049560546875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 4.03594970703125,
+                "area_ratio": 0.00403594970703125,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            },
+            {
+                "level": "low",
+                "score": 3.41796875,
+                "area_ratio": 0.00341796875,
+                "explanation": "Small defect with relatively limited road-surface impact."
+            }
+        ],
+        "road_health": {
+            "score": 88.9312744140625,
+            "condition": "Good",
+            "defect_area_ratio": 0.110687255859375,
+            "defect_count": 5
+        }
+    }
+}

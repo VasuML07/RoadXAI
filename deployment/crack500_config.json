@@ -1,0 +1,9 @@
+{
+    "model_path": ".\\checkpoints\\crack500\\best.pt",
+    "device": "cpu",
+    "image_size": 256,
+    "threshold": 0.5,
+    "max_batch_size": 1,
+    "enable_xai": true,
+    "enable_3d": true
+}

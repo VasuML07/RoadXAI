@@ -1,0 +1,32 @@
+# Core numerical / scientific stack
+numpy>=1.26,<3.0
+pandas>=2.2,<3.0
+scipy>=1.12,<2.0
+
+# Deep learning
+torch>=2.2,<3.0
+torchvision>=0.17,<1.0
+
+# Computer vision / image processing
+opencv-python>=4.9,<5.0
+Pillow>=10.2,<12.0
+
+# Explainable AI / visualization
+matplotlib>=3.8,<4.0
+plotly>=5.20,<7.0
+
+# Web application
+streamlit>=1.35,<2.0
+
+# Training / experiment tracking
+tensorboard>=2.16,<3.0
+
+# Report generation
+reportlab>=4.1,<5.0
+
+# Configuration / utilities
+PyYAML>=6.0,<7.0
+tqdm>=4.66,<5.0
+
+# Testing
+pytest>=8.0,<9.0
