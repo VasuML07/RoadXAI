@@ -1,38 +1,38 @@
 """
 RoadXAI Report Generation Module.
 
-Creates clear, structured, layman-friendly road-defect assessment
-reports from inference, engineering, XAI, and 3D results.
+Creates structured RoadXAI inspection reports from:
 
-The report deliberately separates:
-    - model prediction
-    - engineering measurements
-    - severity
-    - road-health interpretation
-    - explainability
+    - model inference
+    - engineering analysis
+    - explainable AI
     - 3D visualization
-    - recommendations
 
-Important:
-Physical dimensions and repair-cost estimates are only presented as
-physical quantities when valid calibration/rate information exists.
-The report never invents meters, square meters, or monetary values.
+Important design rule
+---------------------
+Structured data is stored inside ReportSection.data for JSON export.
+
+Human-readable report formats (TXT/PDF) use ONLY ReportSection.content.
+They must never dump ReportSection.data into the document.
 """
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from html import escape
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 import json
-import math
+
+
+# ============================================================================
+# REPORT DATA MODELS
+# ============================================================================
 
 
 @dataclass
 class ReportSection:
-    """One human-readable report section."""
+    """One human-readable section of a RoadXAI report."""
 
     title: str
     content: str
@@ -41,7 +41,7 @@ class ReportSection:
 
 @dataclass
 class RoadXAIReport:
-    """Complete RoadXAI assessment report."""
+    """Complete structured RoadXAI report."""
 
     report_id: str
     generated_at: str
@@ -51,24 +51,32 @@ class RoadXAIReport:
     summary: Dict[str, Any]
 
     def to_dict(self) -> Dict[str, Any]:
-        """Return a JSON-safe dictionary."""
+        """Convert the report into JSON-compatible data."""
         return _json_safe(asdict(self))
 
 
+# ============================================================================
+# GENERAL HELPERS
+# ============================================================================
+
+
 def _json_safe(value: Any) -> Any:
-    """Convert common Python/NumPy/dataclass values to JSON-safe data."""
+    """
+    Convert common Python, NumPy, Enum and dataclass values
+    into JSON-compatible values.
+    """
+
     if value is None:
         return None
 
-    if hasattr(value, "value") and value.__class__.__module__ != "builtins":
+    # Enum-like values
+    if hasattr(value, "value"):
         try:
             return _json_safe(value.value)
         except Exception:
             pass
 
-    if is_dataclass(value):
-        return _json_safe(asdict(value))
-
+    # NumPy scalar / ndarray
     if hasattr(value, "tolist"):
         try:
             return _json_safe(value.tolist())
@@ -88,16 +96,28 @@ def _json_safe(value: Any) -> Any:
         }
 
     if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
+        return [
+            _json_safe(item)
+            for item in value
+        ]
 
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            return None
+    # Dataclass
+    if hasattr(value, "__dataclass_fields__"):
+        return _json_safe(asdict(value))
+
+    # Primitive values
+    if isinstance(
+        value,
+        (
+            str,
+            int,
+            float,
+            bool,
+        ),
+    ):
         return value
 
-    if isinstance(value, (str, int, bool)):
-        return value
-
+    # Final safe fallback
     return str(value)
 
 
@@ -106,418 +126,513 @@ def _get_value(
     key: str,
     default: Any = None,
 ) -> Any:
-    """Read a field from either a dictionary or an object."""
+    """Read a value from either a dictionary or an object."""
+
     if source is None:
         return default
 
     if isinstance(source, dict):
-        return source.get(key, default)
-
-    return getattr(source, key, default)
-
-
-def _number(value: Any, default: Optional[float] = None) -> Optional[float]:
-    """Safely convert a value to a finite float."""
-    if value is None:
-        return default
-
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return default
-
-    return number if math.isfinite(number) else default
-
-
-def _percentage(value: Any) -> Optional[float]:
-    """Convert a ratio such as 0.123 to percentage 12.3."""
-    number = _number(value)
-    if number is None:
-        return None
-
-    if 0.0 <= number <= 1.0:
-        return number * 100.0
-
-    return number
-
-
-def _severity_level(severity: Any) -> str:
-    """Return a clean severity label."""
-    level = _get_value(severity, "level")
-
-    if level is None:
-        level = severity
-
-    value = _get_value(level, "value", level)
-
-    text = str(value).strip().lower()
-
-    if "critical" in text:
-        return "critical"
-    if "high" in text:
-        return "high"
-    if "moderate" in text:
-        return "moderate"
-    if "low" in text:
-        return "low"
-
-    return "unknown"
-
-
-def _severity_explanation(level: str) -> str:
-    """Return a layman-friendly explanation."""
-    explanations = {
-        "critical": (
-            "This is a severe detected defect. It should receive "
-            "high-priority field inspection and maintenance planning."
-        ),
-        "high": (
-            "This is a significant detected defect. It should be "
-            "inspected and considered for high-priority maintenance."
-        ),
-        "moderate": (
-            "This is a noticeable defect. It should be inspected "
-            "and included in planned maintenance."
-        ),
-        "low": (
-            "This is a relatively small detected defect. It should "
-            "be monitored and considered during routine maintenance."
-        ),
-        "unknown": (
-            "The available result does not provide a recognized "
-            "severity category."
-        ),
-    }
-
-    return explanations[level]
-
-
-def _health_explanation(condition: str, score: Optional[float]) -> str:
-    """Translate road-health output into plain language."""
-    normalized = str(condition or "").strip().lower()
-
-    if normalized == "excellent":
-        return (
-            "The detected defect area occupies a relatively small "
-            "portion of the analyzed image according to the current "
-            "health-score calculation."
+        return source.get(
+            key,
+            default,
         )
 
-    if normalized == "good":
-        return (
-            "The detected defects affect a limited portion of the "
-            "analyzed image according to the current health-score calculation."
-        )
-
-    if normalized == "fair":
-        return (
-            "The detected defects affect a noticeable portion of the "
-            "analyzed image and should be reviewed during maintenance planning."
-        )
-
-    if normalized == "poor":
-        return (
-            "The detected defects affect a substantial portion of the "
-            "analyzed image and should receive closer inspection."
-        )
-
-    if normalized == "critical":
-        return (
-            "The detected defects occupy a large portion of the analyzed "
-            "image and warrant high-priority field inspection."
-        )
-
-    return (
-        "Road health is calculated from the detected defect area and the "
-        "configured deterministic health-score rules."
+    return getattr(
+        source,
+        key,
+        default,
     )
 
 
-def create_report_id(prefix: str = "ROADXAI") -> str:
+def _format_number(
+    value: Any,
+    digits: int = 2,
+) -> str:
+    """Safely format a numeric value."""
+
+    try:
+        return f"{float(value):.{digits}f}"
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return str(value)
+
+
+def _format_percent(
+    value: Any,
+) -> str:
+    """Format either a fraction or percentage."""
+
+    try:
+        number = float(value)
+
+        if 0.0 <= number <= 1.0:
+            number *= 100.0
+
+        return f"{number:.2f}%"
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return "N/A"
+
+
+def _format_optional(
+    value: Any,
+    suffix: str = "",
+) -> str:
+    """Format optional numeric values."""
+
+    if value is None:
+        return "Not available"
+
+    return (
+        f"{_format_number(value)}"
+        f"{suffix}"
+    )
+
+
+# ============================================================================
+# REPORT ID
+# ============================================================================
+
+
+def create_report_id(
+    prefix: str = "ROADXAI",
+) -> str:
     """Create a unique report identifier."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+
+    timestamp = datetime.now(
+        timezone.utc
+    ).strftime(
+        "%Y%m%d%H%M%S%f"
+    )
+
     return f"{prefix}-{timestamp}"
+
+
+# ============================================================================
+# EXECUTIVE SUMMARY
+# ============================================================================
 
 
 def create_summary_section(
     engineering_result: Any = None,
     inference_result: Any = None,
 ) -> ReportSection:
-    """Create a concise, human-readable executive summary."""
+    """Create the executive summary."""
 
-    confidence = _number(
-        _get_value(inference_result, "confidence")
+    confidence = _get_value(
+        inference_result,
+        "confidence",
     )
 
-    defects = _get_value(
-        engineering_result,
-        "defects",
-        [],
-    ) or []
+    prediction_mask = _get_value(
+        inference_result,
+        "prediction_mask",
+    )
+
+    defect_count = None
 
     road_health = _get_value(
         engineering_result,
         "road_health",
     )
 
-    health_score = _number(
-        _get_value(road_health, "score")
+    severity = _get_value(
+        engineering_result,
+        "severity",
     )
 
-    health_condition = _get_value(
-        road_health,
-        "condition",
-        "Not available",
-    )
+    if severity is None:
+        severity = _get_value(
+            engineering_result,
+            "severity_level",
+        )
 
-    prediction_mask = _get_value(
-        inference_result,
-        "prediction_mask",
-    )
+    if road_health is not None:
+        defect_count = _get_value(
+            road_health,
+            "defect_count",
+        )
+
+    if defect_count is None:
+        defects = _get_value(
+            engineering_result,
+            "defects",
+            [],
+        )
+
+        if defects is not None:
+            try:
+                defect_count = len(defects)
+            except TypeError:
+                defect_count = None
 
     defect_percentage = None
 
-    if prediction_mask is not None:
+    if (
+        prediction_mask is not None
+    ):
         try:
             import numpy as np
 
-            mask = np.asarray(prediction_mask)
-            if mask.size:
+            mask = np.asarray(
+                prediction_mask
+            )
+
+            if mask.size > 0:
                 defect_percentage = (
-                    float(np.count_nonzero(mask))
+                    float(
+                        np.count_nonzero(mask)
+                    )
                     / float(mask.size)
                     * 100.0
                 )
         except Exception:
             pass
 
-    if defects:
-        defect_sentence = (
-            f"The system identified {len(defects)} separate "
-            f"detected defect region(s)."
+    health_score = _get_value(
+        road_health,
+        "score",
+    )
+
+    condition = _get_value(
+        road_health,
+        "condition",
+    )
+
+    if condition is None:
+        condition = _get_value(
+            engineering_result,
+            "condition",
+        )
+
+    summary_data: Dict[str, Any] = {}
+
+    if defect_count is not None:
+        summary_data[
+            "defect_count"
+        ] = int(defect_count)
+
+    if defect_percentage is not None:
+        summary_data[
+            "defect_percentage"
+        ] = float(defect_percentage)
+
+    if confidence is not None:
+        summary_data[
+            "model_confidence"
+        ] = float(confidence)
+
+    if condition is not None:
+        summary_data[
+            "road_health_condition"
+        ] = str(condition)
+
+    if health_score is not None:
+        summary_data[
+            "road_health_score"
+        ] = float(health_score)
+
+    parts: List[str] = []
+
+    if defect_count is not None:
+        parts.append(
+            "The system identified "
+            f"{int(defect_count)} separate "
+            "detected defect region(s)."
         )
     else:
-        defect_sentence = (
-            "The system did not identify any defect regions "
-            "above the configured minimum area."
+        parts.append(
+            "The system completed an "
+            "automated road-defect assessment."
         )
 
     if defect_percentage is not None:
-        area_sentence = (
-            f"Approximately {defect_percentage:.2f}% of the analyzed "
-            "image pixels were classified as defect pixels."
+        parts.append(
+            "Approximately "
+            f"{defect_percentage:.2f}% of the "
+            "analyzed image pixels were classified "
+            "as defect pixels."
         )
-    else:
-        area_sentence = ""
 
     if confidence is not None:
-        confidence_sentence = (
-            f"The model confidence indicator is {confidence:.2%}."
-        )
-    else:
-        confidence_sentence = (
-            "A model confidence value was not available."
+        parts.append(
+            "The model confidence indicator is "
+            f"{float(confidence):.2%}."
         )
 
-    health_sentence = (
-        f"The calculated road-health result is "
-        f"{str(health_condition).title()}"
+    if condition is not None:
+        if health_score is not None:
+            parts.append(
+                "The calculated road-health result "
+                f"is {condition} "
+                f"({float(health_score):.2f}/100)."
+            )
+        else:
+            parts.append(
+                f"The calculated road condition "
+                f"is {condition}."
+            )
+
+    if severity is not None:
+        severity_text = _json_safe(
+            severity
+        )
+
+        if isinstance(
+            severity_text,
+            (list, dict),
+        ):
+            parts.append(
+                "Individual defect severity "
+                "classifications are provided in "
+                "the engineering section."
+            )
+        else:
+            parts.append(
+                "The assessment includes the "
+                f"following severity classification: "
+                f"{severity_text}."
+            )
+
+    parts.append(
+        "This is an automated image-analysis "
+        "result and should be confirmed by field "
+        "inspection before repair decisions."
     )
-
-    if health_score is not None:
-        health_sentence += f" ({health_score:.2f}/100)."
-
-    health_sentence += " " + _health_explanation(
-        str(health_condition),
-        health_score,
-    )
-
-    content = " ".join(
-        part
-        for part in [
-            defect_sentence,
-            area_sentence,
-            confidence_sentence,
-            health_sentence,
-        ]
-        if part
-    )
-
-    data = {
-        "defect_count": len(defects),
-        "defect_percentage": defect_percentage,
-        "model_confidence": confidence,
-        "road_health_condition": health_condition,
-        "road_health_score": health_score,
-    }
 
     return ReportSection(
         title="Executive Summary",
-        content=content,
-        data=data,
+        content=" ".join(parts),
+        data=summary_data,
     )
+
+
+# ============================================================================
+# DEFECT DETECTION
+# ============================================================================
 
 
 def create_detection_section(
     inference_result: Any,
 ) -> ReportSection:
-    """Create a clear description of model detection."""
+    """Create the defect-detection section."""
 
     prediction_mask = _get_value(
         inference_result,
         "prediction_mask",
     )
 
-    confidence = _number(
-        _get_value(inference_result, "confidence")
+    confidence = _get_value(
+        inference_result,
+        "confidence",
+    )
+
+    original_image = _get_value(
+        inference_result,
+        "original_image",
     )
 
     data: Dict[str, Any] = {}
+
+    image_height = None
+    image_width = None
+
+    if original_image is not None:
+        try:
+            shape = original_image.shape
+
+            if len(shape) >= 2:
+                image_height = int(shape[0])
+                image_width = int(shape[1])
+        except Exception:
+            pass
+
+    if (
+        image_height is None
+        and prediction_mask is not None
+    ):
+        try:
+            shape = prediction_mask.shape
+
+            if len(shape) >= 2:
+                image_height = int(shape[-2])
+                image_width = int(shape[-1])
+        except Exception:
+            pass
+
+    defect_pixels = None
+    total_pixels = None
 
     if prediction_mask is not None:
         try:
             import numpy as np
 
-            mask = np.asarray(prediction_mask)
-
-            if mask.ndim == 3:
-                mask = np.squeeze(mask)
-
-            data["image_height"] = int(mask.shape[0])
-            data["image_width"] = int(mask.shape[1])
-            data["total_pixels"] = int(mask.size)
-            data["defect_pixels"] = int(np.count_nonzero(mask))
-            data["defect_percentage"] = (
-                float(np.count_nonzero(mask))
-                / float(mask.size)
-                * 100.0
-                if mask.size
-                else 0.0
+            mask = np.asarray(
+                prediction_mask
             )
+
+            total_pixels = int(
+                mask.size
+            )
+
+            defect_pixels = int(
+                np.count_nonzero(mask)
+            )
+
         except Exception:
             pass
 
-    if confidence is not None:
-        data["confidence"] = confidence
+    if image_height is not None:
+        data[
+            "image_height"
+        ] = image_height
 
-    defect_percentage = data.get(
-        "defect_percentage",
-        0.0,
-    )
+    if image_width is not None:
+        data[
+            "image_width"
+        ] = image_width
 
-    content = (
-        "RoadXAI uses image segmentation to estimate which pixels "
-        "belong to road defects. In this assessment, "
-        f"{defect_percentage:.2f}% of the analyzed image pixels "
-        "were classified as defect pixels."
-    )
+    if total_pixels is not None:
+        data[
+            "total_pixels"
+        ] = total_pixels
 
-    if confidence is not None:
-        content += (
-            f" The reported model confidence indicator is "
-            f"{confidence:.2%}."
+    if defect_pixels is not None:
+        data[
+            "defect_pixels"
+        ] = defect_pixels
+
+    defect_percentage = None
+
+    if (
+        defect_pixels is not None
+        and total_pixels
+    ):
+        defect_percentage = (
+            defect_pixels
+            / total_pixels
+            * 100.0
         )
 
-    content += (
-        " This is an automated image-analysis result and should be "
-        "confirmed by field inspection before repair decisions."
+        data[
+            "defect_percentage"
+        ] = defect_percentage
+
+    if confidence is not None:
+        data[
+            "confidence"
+        ] = float(confidence)
+
+    parts = [
+        "RoadXAI uses image segmentation "
+        "to estimate which pixels belong "
+        "to road defects."
+    ]
+
+    if defect_percentage is not None:
+        parts.append(
+            f"In this assessment, "
+            f"{defect_percentage:.2f}% of the "
+            "analyzed image pixels were "
+            "classified as defect pixels."
+        )
+
+    if confidence is not None:
+        parts.append(
+            "The reported model confidence "
+            f"indicator is {float(confidence):.2%}."
+        )
+
+    parts.append(
+        "This is an automated image-analysis "
+        "result and should be confirmed by "
+        "field inspection before repair decisions."
     )
 
     return ReportSection(
         title="Defect Detection",
-        content=content,
+        content=" ".join(parts),
         data=data,
     )
+
+
+# ============================================================================
+# ENGINEERING MEASUREMENTS
+# ============================================================================
 
 
 def create_measurement_section(
     engineering_result: Any,
 ) -> ReportSection:
-    """Create readable measurements for every detected region."""
+    """Create the engineering-measurement section."""
 
     measurements = _get_value(
         engineering_result,
-        "defects",
-        [],
-    ) or []
+        "measurements",
+    )
 
-    if not isinstance(measurements, (list, tuple)):
+    if measurements is None:
+        measurements = _get_value(
+            engineering_result,
+            "defects",
+            [],
+        )
+
+    if measurements is None:
+        measurements = []
+
+    if not isinstance(
+        measurements,
+        (list, tuple),
+    ):
         measurements = [measurements]
 
-    rows: List[Dict[str, Any]] = []
+    serialized = [
+        _json_safe(item)
+        for item in measurements
+    ]
 
-    for index, measurement in enumerate(
-        measurements,
-        start=1,
-    ):
-        row: Dict[str, Any] = {
-            "defect_number": index,
-            "area_pixels": _number(
-                _get_value(measurement, "area_pixels")
-            ),
-            "length_pixels": _number(
-                _get_value(measurement, "length_pixels")
-            ),
-            "width_pixels": _number(
-                _get_value(measurement, "width_pixels")
-            ),
-            "area_m2": _number(
-                _get_value(measurement, "area_m2")
-            ),
-            "length_m": _number(
-                _get_value(measurement, "length_m")
-            ),
-            "width_m": _number(
-                _get_value(measurement, "width_m")
-            ),
-            "centroid_x": _number(
-                _get_value(measurement, "centroid_x")
-            ),
-            "centroid_y": _number(
-                _get_value(measurement, "centroid_y")
-            ),
-        }
+    calibration = _get_value(
+        engineering_result,
+        "calibration",
+    )
 
-        rows.append(row)
-
-    data = {
-        "defect_count": len(rows),
-        "measurements": rows,
-        "physical_calibration_available": any(
-            row["area_m2"] is not None
-            or row["length_m"] is not None
-            or row["width_m"] is not None
-            for row in rows
+    data: Dict[str, Any] = {
+        "defect_count": len(serialized),
+        "measurements": serialized,
+        "physical_calibration_available": (
+            calibration is not None
         ),
     }
 
-    if not rows:
+    physical_available = (
+        calibration is not None
+    )
+
+    if physical_available:
         content = (
-            "No defect regions were available for engineering measurement."
+            "Engineering analysis measured "
+            f"{len(serialized)} detected defect "
+            "region(s). Physical measurements "
+            "are available because a calibration "
+            "reference was supplied."
         )
     else:
-        physical_available = data[
-            "physical_calibration_available"
-        ]
-
         content = (
-            f"Engineering analysis measured {len(rows)} detected "
-            "defect region(s). Area, length, and width are reported "
-            "in pixels unless a validated pixel-to-meter calibration "
-            "was supplied."
+            "Engineering analysis measured "
+            f"{len(serialized)} detected defect "
+            "region(s). Area, length, and width "
+            "are reported in pixels because no "
+            "validated pixel-to-meter calibration "
+            "was supplied. These pixel measurements "
+            "must not be interpreted as meters or "
+            "square meters."
         )
-
-        if physical_available:
-            content += (
-                " Physical measurements are available for the "
-                "calibrated results."
-            )
-        else:
-            content += (
-                " No physical calibration was supplied, so the "
-                "pixel measurements must not be interpreted as meters "
-                "or square meters."
-            )
 
     return ReportSection(
         title="Engineering Measurements",
@@ -526,426 +641,483 @@ def create_measurement_section(
     )
 
 
+# ============================================================================
+# SEVERITY AND ROAD HEALTH
+# ============================================================================
+
+
 def create_severity_section(
     engineering_result: Any,
 ) -> ReportSection:
-    """Create a layman-friendly severity assessment."""
+    """Create severity and road-health information."""
 
-    severity_results = _get_value(
+    severity = _get_value(
         engineering_result,
         "severity",
-        [],
-    ) or []
+    )
 
-    if not isinstance(
-        severity_results,
-        (list, tuple),
-    ):
-        severity_results = [severity_results]
+    if severity is None:
+        severity = _get_value(
+            engineering_result,
+            "severity_level",
+        )
 
     road_health = _get_value(
         engineering_result,
         "road_health",
     )
 
-    health_condition = _get_value(
+    condition = _get_value(
         road_health,
         "condition",
-        "Not available",
     )
 
-    health_score = _number(
-        _get_value(road_health, "score")
+    if condition is None:
+        condition = _get_value(
+            engineering_result,
+            "condition",
+        )
+
+    health_score = _get_value(
+        road_health,
+        "score",
     )
-
-    severity_rows: List[Dict[str, Any]] = []
-
-    for index, severity in enumerate(
-        severity_results,
-        start=1,
-    ):
-        level = _severity_level(severity)
-        score = _number(
-            _get_value(severity, "score")
-        )
-        area_ratio = _number(
-            _get_value(severity, "area_ratio")
-        )
-
-        severity_rows.append(
-            {
-                "defect_number": index,
-                "level": level,
-                "score": score,
-                "defect_area_percentage": (
-                    area_ratio * 100.0
-                    if area_ratio is not None
-                    else None
-                ),
-                "meaning": _severity_explanation(level),
-            }
-        )
 
     data = {
-        "severity": severity_rows,
-        "road_health": {
-            "condition": health_condition,
-            "score": health_score,
-        },
+        "severity": _json_safe(
+            severity
+        ),
+        "road_health": _json_safe(
+            road_health
+        ),
+        "condition": _json_safe(
+            condition
+        ),
     }
 
-    if severity_rows:
-        highest = max(
-            severity_rows,
-            key=lambda item: (
-                {
-                    "critical": 4,
-                    "high": 3,
-                    "moderate": 2,
-                    "low": 1,
-                    "unknown": 0,
-                }.get(item["level"], 0),
-                item["score"] or 0.0,
-            ),
-        )
+    if health_score is not None:
+        data[
+            "road_health_score"
+        ] = float(health_score)
 
-        content = (
-            f"The highest detected severity category is "
-            f"{highest['level'].upper()}. "
-            f"{_severity_explanation(highest['level'])}"
-        )
+    parts: List[str] = []
 
-        content += (
-            f" Across the full image, the calculated road-health "
-            f"result is {str(health_condition).title()}"
-        )
-
+    if condition is not None:
         if health_score is not None:
-            content += f" ({health_score:.2f}/100)"
+            parts.append(
+                "Overall road condition: "
+                f"{condition} "
+                f"({float(health_score):.2f}/100)."
+            )
+        else:
+            parts.append(
+                f"Overall road condition: "
+                f"{condition}."
+            )
 
-        content += "."
-
-        content += (
-            " Severity is calculated deterministically from the "
-            "detected defect area and, when available, calibrated "
-            "physical dimensions."
+    if severity is not None:
+        severity_value = _json_safe(
+            severity
         )
-    else:
-        content = (
-            "No severity classifications were generated because "
-            "no qualifying defect regions were available."
+
+        if isinstance(
+            severity_value,
+            list,
+        ):
+            counts = {}
+
+            for item in severity_value:
+                level = _get_value(
+                    item,
+                    "level",
+                )
+
+                if level is not None:
+                    level = str(level)
+                    counts[level] = (
+                        counts.get(level, 0)
+                        + 1
+                    )
+
+            if counts:
+                summary = ", ".join(
+                    f"{count} {level}"
+                    for level, count
+                    in counts.items()
+                )
+
+                parts.append(
+                    "Detected severity distribution: "
+                    f"{summary}."
+                )
+
+        elif isinstance(
+            severity_value,
+            dict,
+        ):
+            parts.append(
+                "Severity information is available "
+                "for the detected defects."
+            )
+        else:
+            parts.append(
+                "Severity classification: "
+                f"{severity_value}."
+            )
+
+    if not parts:
+        parts.append(
+            "No severity or road-condition "
+            "information was provided."
         )
 
     return ReportSection(
         title="Severity Assessment",
-        content=content,
+        content=" ".join(parts),
         data=data,
     )
+
+
+# ============================================================================
+# REPAIR COST
+# ============================================================================
 
 
 def create_cost_section(
     engineering_result: Any,
 ) -> ReportSection:
-    """Create a safe repair-cost section without inventing prices."""
+    """Create repair-cost information."""
 
-    cost = _get_value(
+    repair_cost = _get_value(
         engineering_result,
         "repair_cost",
     )
 
-    if cost is None:
-        cost = _get_value(
-            engineering_result,
-            "repair_cost_result",
-        )
-
-    estimate_area = _number(
-        _get_value(cost, "estimated_area_m2")
-    )
-    rate = _number(
-        _get_value(cost, "rate_per_m2")
-    )
-    estimated_cost = _number(
-        _get_value(cost, "estimated_cost")
-    )
-    currency = str(
-        _get_value(cost, "currency", "INR")
-    )
-
-    physical_area_available = any(
-        value is not None
-        for value in (
-            estimate_area,
-            rate,
-            estimated_cost,
-        )
-    ) and (
-        estimate_area is not None
-        and estimate_area > 0
-    )
-
-    if (
-        cost is None
-        or not physical_area_available
-        or rate is None
-        or rate <= 0
-    ):
-        content = (
-            "A repair-cost amount is not provided for this assessment. "
-            "RoadXAI requires a validated pixel-to-meter calibration "
-            "and a user-supplied repair rate per square meter before "
-            "a monetary estimate can be calculated. No price is "
-            "invented by the system."
-        )
-
-        data = {
-            "available": False,
-            "reason": (
-                "Calibration and/or repair rate was not supplied."
+    if repair_cost is None:
+        return ReportSection(
+            title="Repair Cost Estimate",
+            content=(
+                "No repair-cost estimate was "
+                "generated because the required "
+                "calibration or repair-rate "
+                "information was not supplied."
             ),
-        }
-
-    else:
-        content = (
-            f"Using the supplied calibration and repair rate, the "
-            f"estimated affected area is {estimate_area:.4f} m² and "
-            f"the estimated repair amount is "
-            f"{currency.upper()} {estimated_cost:,.2f}. "
-            "This is an indicative calculation, not a contractor quote."
+            data={
+                "available": False,
+            },
         )
 
+    estimated_area = _get_value(
+        repair_cost,
+        "estimated_area_m2",
+    )
+
+    rate = _get_value(
+        repair_cost,
+        "rate_per_m2",
+    )
+
+    estimated_cost = _get_value(
+        repair_cost,
+        "estimated_cost",
+    )
+
+    currency = _get_value(
+        repair_cost,
+        "currency",
+        "INR",
+    )
+
+    data = _json_safe(
+        repair_cost
+    )
+
+    if not isinstance(
+        data,
+        dict,
+    ):
         data = {
-            "available": True,
-            "estimated_area_m2": estimate_area,
-            "rate_per_m2": rate,
-            "estimated_cost": estimated_cost,
-            "currency": currency.upper(),
+            "repair_cost": data,
         }
+
+    data["available"] = True
+
+    parts = [
+        "A repair-cost estimate was generated."
+    ]
+
+    if estimated_area is not None:
+        parts.append(
+            "Estimated repair area: "
+            f"{_format_number(estimated_area)} m²."
+        )
+
+    if rate is not None:
+        parts.append(
+            "Applied repair rate: "
+            f"{currency} "
+            f"{float(rate):,.2f} per m²."
+        )
+
+    if estimated_cost is not None:
+        parts.append(
+            "Estimated repair cost: "
+            f"{currency} "
+            f"{float(estimated_cost):,.2f}."
+        )
 
     return ReportSection(
         title="Repair Cost Estimate",
-        content=content,
+        content=" ".join(parts),
         data=data,
     )
+
+
+# ============================================================================
+# XAI
+# ============================================================================
 
 
 def create_xai_section(
     xai_result: Any,
 ) -> ReportSection:
-    """Create a clear explanation of the XAI result."""
+    """Create explainable-AI information."""
 
     if xai_result is None:
         return ReportSection(
             title="Explainable AI",
             content=(
-                "No explainability result was generated for this assessment."
+                "No explainable-AI result was "
+                "generated."
             ),
-            data={"available": False},
+            data={
+                "available": False,
+            },
         )
 
     method = _get_value(
         xai_result,
         "method",
-        _get_value(xai_result, "technique", "Grad-CAM"),
     )
 
-    target_layer = _get_value(
-        xai_result,
-        "target_layer",
-    )
-
-    heatmap = _get_value(
-        xai_result,
-        "heatmap",
-    )
-
-    shape = None
-
-    try:
-        shape = list(heatmap.shape)
-    except Exception:
-        pass
-
-    target_layer_name = (
-        target_layer.__class__.__name__
-        if target_layer is not None
-        else "Not specified"
-    )
-
-    content = (
-        f"{method} was used to show which image regions most "
-        "influenced the model's prediction. Warmer/brighter areas "
-        "indicate stronger model attention, while cooler/darker "
-        "areas indicate weaker attention."
-    )
-
-    content += (
-        " This visualization explains the model's focus; it is not "
-        "a separate measurement of defect size or physical damage."
-    )
-
-    if target_layer is not None:
-        content += (
-            f" The explanation was generated from the configured "
-            f"{target_layer_name} target layer."
+    if method is None:
+        method = _get_value(
+            xai_result,
+            "algorithm",
         )
 
-    data = {
+    target_class = _get_value(
+        xai_result,
+        "target_class",
+    )
+
+    data: Dict[str, Any] = {
         "available": True,
-        "method": _json_safe(method),
-        "target_layer": target_layer_name,
-        "heatmap_shape": shape,
     }
+
+    if method is not None:
+        data[
+            "method"
+        ] = str(method)
+
+    if target_class is not None:
+        data[
+            "target_class"
+        ] = _json_safe(target_class)
+
+    parts = [
+        "An explainable-AI attention map "
+        "was generated to show image regions "
+        "that contributed to the model prediction."
+    ]
+
+    if method is not None:
+        parts.append(
+            f"The selected method was {method}."
+        )
+
+    if target_class is not None:
+        parts.append(
+            f"The analyzed target class was "
+            f"{target_class}."
+        )
 
     return ReportSection(
         title="Explainable AI",
-        content=content,
+        content=" ".join(parts),
         data=data,
     )
+
+
+# ============================================================================
+# 3D VISUALIZATION
+# ============================================================================
 
 
 def create_3d_section(
     visualization_result: Any,
 ) -> ReportSection:
-    """Create a clear explanation of the 3D visualization."""
+    """Create 3D-visualization information."""
 
     if visualization_result is None:
         return ReportSection(
             title="3D Visualization",
             content=(
-                "No 3D visualization was generated for this assessment."
+                "No 3D visualization was generated."
             ),
-            data={"available": False},
+            data={
+                "available": False,
+            },
         )
+
+    data: Dict[str, Any] = {
+        "available": True,
+    }
 
     heightmap = _get_value(
         visualization_result,
         "heightmap",
     )
 
+    if heightmap is None:
+        heightmap_result = _get_value(
+            visualization_result,
+            "heightmap_result",
+        )
+
+        heightmap = _get_value(
+            heightmap_result,
+            "heightmap",
+        )
+
     mesh = _get_value(
         visualization_result,
         "mesh",
     )
 
-    shape = None
+    if heightmap is not None:
+        try:
+            data[
+                "heightmap_shape"
+            ] = list(
+                heightmap.shape
+            )
+        except Exception:
+            pass
 
-    try:
-        shape = list(heightmap.shape)
-    except Exception:
-        pass
+    if mesh is not None:
+        vertices = _get_value(
+            mesh,
+            "vertices",
+        )
 
-    vertices = _get_value(mesh, "vertices")
-    faces = _get_value(mesh, "faces")
+        faces = _get_value(
+            mesh,
+            "faces",
+        )
 
-    vertex_count = (
-        len(vertices)
-        if vertices is not None
-        else None
-    )
+        if vertices is not None:
+            try:
+                data[
+                    "vertex_count"
+                ] = int(len(vertices))
+            except Exception:
+                pass
 
-    face_count = (
-        len(faces)
-        if faces is not None
-        else None
-    )
+        if faces is not None:
+            try:
+                data[
+                    "face_count"
+                ] = int(len(faces))
+            except Exception:
+                pass
 
-    content = (
-        "A 3D surface visualization was generated from the detected "
-        "segmentation mask. Higher surface values represent stronger "
-        "detected defect intensity in the visualization."
-    )
-
-    content += (
-        " The 3D surface is a visual representation of the model "
-        "output; without depth or camera calibration it must not be "
-        "interpreted as a physically measured pothole depth."
-    )
-
-    data = {
-        "available": True,
-        "heightmap_shape": shape,
-        "vertex_count": vertex_count,
-        "face_count": face_count,
-        "physical_depth_measurement": False,
-    }
+    data[
+        "depth_is_physical"
+    ] = False
 
     return ReportSection(
         title="3D Visualization",
-        content=content,
+        content=(
+            "An interactive 3D representation "
+            "of the detected defect geometry "
+            "was generated. The displayed depth "
+            "is a normalized visualization "
+            "coordinate unless validated physical "
+            "depth information is supplied."
+        ),
         data=data,
     )
+
+
+# ============================================================================
+# RECOMMENDATIONS
+# ============================================================================
 
 
 def create_recommendations_section(
     engineering_result: Any = None,
 ) -> ReportSection:
-    """Create deterministic maintenance guidance."""
+    """Create deterministic maintenance recommendations."""
 
-    severity_results = _get_value(
+    severity = _get_value(
         engineering_result,
         "severity",
-        [],
-    ) or []
-
-    if not isinstance(
-        severity_results,
-        (list, tuple),
-    ):
-        severity_results = [severity_results]
-
-    levels = [
-        _severity_level(item)
-        for item in severity_results
-    ]
-
-    if "critical" in levels:
-        priority = "IMMEDIATE / HIGH PRIORITY"
-        action = (
-            "Arrange prompt field inspection and prioritize the "
-            "critical region(s) for maintenance planning."
-        )
-    elif "high" in levels:
-        priority = "HIGH PRIORITY"
-        action = (
-            "Arrange field inspection and prioritize the high-severity "
-            "region(s) for maintenance planning."
-        )
-    elif "moderate" in levels:
-        priority = "PLANNED MAINTENANCE"
-        action = (
-            "Inspect the moderate-severity region(s) and include them "
-            "in planned maintenance."
-        )
-    elif "low" in levels:
-        priority = "ROUTINE MONITORING"
-        action = (
-            "Monitor the detected low-severity region(s) and consider "
-            "them during routine maintenance."
-        )
-    else:
-        priority = "FIELD REVIEW"
-        action = (
-            "Review the automated result and confirm conditions with "
-            "a field inspection before making maintenance decisions."
-        )
-
-    content = (
-        f"Recommended priority: {priority}. {action} "
-        "RoadXAI should be treated as a screening and decision-support "
-        "system; final engineering and repair decisions require "
-        "appropriate field verification."
     )
+
+    if severity is None:
+        severity = _get_value(
+            engineering_result,
+            "severity_level",
+        )
+
+    severity_text = str(
+        _json_safe(severity)
+    ).lower()
+
+    if "critical" in severity_text:
+        recommendation = (
+            "Prioritize immediate inspection "
+            "and repair planning."
+        )
+
+    elif "high" in severity_text:
+        recommendation = (
+            "Schedule high-priority inspection "
+            "and maintenance."
+        )
+
+    elif "moderate" in severity_text:
+        recommendation = (
+            "Schedule routine inspection and "
+            "maintenance planning."
+        )
+
+    elif "low" in severity_text:
+        recommendation = (
+            "Continue monitoring and include the "
+            "location in routine maintenance."
+        )
+
+    else:
+        recommendation = (
+            "Review the generated measurements "
+            "and schedule an appropriate field "
+            "inspection."
+        )
 
     return ReportSection(
         title="Recommendations",
-        content=content,
+        content=recommendation,
         data={
-            "priority": priority,
-            "recommended_action": action,
-            "field_verification_required": True,
+            "recommendation": recommendation,
         },
     )
+
+
+# ============================================================================
+# COMPLETE REPORT
+# ============================================================================
 
 
 def generate_report(
@@ -954,16 +1126,18 @@ def generate_report(
     xai_result: Any = None,
     visualization_result: Any = None,
     image_name: Optional[str] = None,
-    title: str = "RoadXAI Road Defect Assessment",
+    title: str = "RoadXAI Road Inspection Report",
 ) -> RoadXAIReport:
-    """Generate the complete RoadXAI assessment."""
+    """Generate a complete RoadXAI report."""
 
-    sections: List[ReportSection] = [
+    sections: List[ReportSection] = []
+
+    sections.append(
         create_summary_section(
-            engineering_result,
-            inference_result,
+            engineering_result=engineering_result,
+            inference_result=inference_result,
         )
-    ]
+    )
 
     if inference_result is not None:
         sections.append(
@@ -978,13 +1152,21 @@ def generate_report(
                 engineering_result
             )
         )
+
         sections.append(
             create_severity_section(
                 engineering_result
             )
         )
+
         sections.append(
             create_cost_section(
+                engineering_result
+            )
+        )
+
+        sections.append(
+            create_recommendations_section(
                 engineering_result
             )
         )
@@ -1003,12 +1185,11 @@ def generate_report(
             )
         )
 
-    if engineering_result is not None:
-        sections.append(
-            create_recommendations_section(
-                engineering_result
-            )
-        )
+    summary = (
+        sections[0].data
+        if sections
+        else {}
+    )
 
     return RoadXAIReport(
         report_id=create_report_id(),
@@ -1018,47 +1199,80 @@ def generate_report(
         title=title,
         image_name=image_name,
         sections=sections,
-        summary=_json_safe(
-            sections[0].data
-            if sections
-            else {}
-        ),
+        summary=_json_safe(summary),
     )
+
+
+# ============================================================================
+# JSON EXPORT
+# ============================================================================
 
 
 def save_json_report(
     report: RoadXAIReport,
     output_path: Union[str, Path],
 ) -> Path:
-    """Save a structured JSON report."""
-    path = Path(output_path)
+    """Save the complete structured report as JSON."""
+
+    if not isinstance(
+        report,
+        RoadXAIReport,
+    ):
+        raise TypeError(
+            "report must be a RoadXAIReport."
+        )
+
+    path = Path(
+        output_path
+    )
 
     if path.suffix.lower() != ".json":
-        path = path.with_suffix(".json")
+        path = path.with_suffix(
+            ".json"
+        )
 
     path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    path.write_text(
-        json.dumps(
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
             report.to_dict(),
+            file,
             indent=4,
             ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
+        )
 
     return path
+
+
+# ============================================================================
+# HUMAN-READABLE TEXT
+# ============================================================================
 
 
 def render_report_text(
     report: RoadXAIReport,
 ) -> str:
-    """Render a professional plain-text report."""
+    """
+    Render ONLY human-readable section content.
 
-    lines: List[str] = [
+    ReportSection.data is deliberately excluded.
+    """
+
+    if not isinstance(
+        report,
+        RoadXAIReport,
+    ):
+        raise TypeError(
+            "report must be a RoadXAIReport."
+        )
+
+    lines = [
         report.title,
         "=" * len(report.title),
         "",
@@ -1071,109 +1285,35 @@ def render_report_text(
             f"Image: {report.image_name}"
         )
 
-    lines.extend(
-        [
-            "",
-            "IMPORTANT",
-            "---------",
-            (
-                "This report is an automated image-analysis assessment. "
-                "Field verification is required before engineering or "
-                "repair decisions."
-            ),
-            "",
-        ]
-    )
+    lines.append("")
 
-    for number, section in enumerate(
-        report.sections,
-        start=1,
-    ):
+    for section in report.sections:
         lines.extend(
             [
-                f"{number}. {section.title}",
-                "-" * (
-                    len(section.title) + 3
-                ),
-                section.content,
+                section.title,
+                "-" * len(section.title),
+                section.content.strip(),
                 "",
             ]
         )
 
-        if section.title == "Engineering Measurements":
-            measurements = section.data.get(
-                "measurements",
-                [],
-            )
-
-            if measurements:
-                lines.append(
-                    "Defect measurements:"
-                )
-
-                for item in measurements:
-                    area = item.get("area_pixels")
-                    length = item.get("length_pixels")
-                    width = item.get("width_pixels")
-
-                    lines.append(
-                        f"  Defect {item['defect_number']}: "
-                        f"area={_format_number(area)} px, "
-                        f"length={_format_number(length)} px, "
-                        f"width={_format_number(width)} px"
-                    )
-
-                lines.append("")
-
-        if section.title == "Severity Assessment":
-            severity_items = section.data.get(
-                "severity",
-                [],
-            )
-
-            for item in severity_items:
-                score = item.get("score")
-
-                score_text = (
-                    f"{score:.2f}"
-                    if score is not None
-                    else "N/A"
-                )
-
-                lines.append(
-                    f"  Defect {item['defect_number']}: "
-                    f"{item['level'].upper()} "
-                    f"(score {score_text}) — "
-                    f"{item['meaning']}"
-                )
-
-            lines.append("")
-
-    return "\n".join(lines).rstrip() + "\n"
-
-
-def _format_number(value: Any) -> str:
-    """Format numeric values compactly."""
-    number = _number(value)
-
-    if number is None:
-        return "N/A"
-
-    if abs(number - round(number)) < 1e-9:
-        return f"{int(round(number)):,}"
-
-    return f"{number:,.2f}"
+    return "\n".join(lines).strip() + "\n"
 
 
 def save_text_report(
     report: RoadXAIReport,
     output_path: Union[str, Path],
 ) -> Path:
-    """Save a readable text report."""
-    path = Path(output_path)
+    """Save the human-readable text report."""
+
+    path = Path(
+        output_path
+    )
 
     if path.suffix.lower() != ".txt":
-        path = path.with_suffix(".txt")
+        path = path.with_suffix(
+            ".txt"
+        )
 
     path.parent.mkdir(
         parents=True,
@@ -1188,14 +1328,9 @@ def save_text_report(
     return path
 
 
-def _pdf_paragraph(text: str) -> str:
-    """Escape text for ReportLab Paragraph."""
-    return escape(
-        str(text)
-    ).replace(
-        "\n",
-        "<br/>",
-    )
+# ============================================================================
+# PDF EXPORT
+# ============================================================================
 
 
 def generate_pdf_report(
@@ -1203,14 +1338,33 @@ def generate_pdf_report(
     output_path: Union[str, Path],
 ) -> Path:
     """
-    Generate a clean, human-readable PDF.
+    Generate a professional human-readable PDF.
 
-    The PDF intentionally does not dump raw JSON structures.
+    CRITICAL:
+        ReportSection.data is NEVER rendered.
+
+    Only:
+        report metadata
+        section.title
+        section.content
+
+    are written to the PDF.
     """
+
+    if not isinstance(
+        report,
+        RoadXAIReport,
+    ):
+        raise TypeError(
+            "report must be a RoadXAIReport."
+        )
 
     try:
         from reportlab.lib import colors
-        from reportlab.lib.enums import TA_CENTER
+        from reportlab.lib.enums import (
+            TA_CENTER,
+            TA_LEFT,
+        )
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import (
             ParagraphStyle,
@@ -1218,22 +1372,26 @@ def generate_pdf_report(
         )
         from reportlab.lib.units import mm
         from reportlab.platypus import (
-            HRFlowable,
+            KeepTogether,
             Paragraph,
             SimpleDocTemplate,
             Spacer,
-            Table,
-            TableStyle,
         )
+
     except ImportError as exc:
         raise ImportError(
-            "ReportLab is required for PDF generation."
+            "ReportLab is required for PDF generation. "
+            "Install it with: pip install reportlab"
         ) from exc
 
-    path = Path(output_path)
+    path = Path(
+        output_path
+    )
 
     if path.suffix.lower() != ".pdf":
-        path = path.with_suffix(".pdf")
+        path = path.with_suffix(
+            ".pdf"
+        )
 
     path.parent.mkdir(
         parents=True,
@@ -1249,403 +1407,197 @@ def generate_pdf_report(
         bottomMargin=18 * mm,
         title=report.title,
         author="RoadXAI",
+        subject="Automated Road Defect Inspection Report",
     )
 
-    base_styles = getSampleStyleSheet()
+    styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
         "RoadXAITitle",
-        parent=base_styles["Title"],
-        fontSize=22,
-        leading=27,
+        parent=styles["Title"],
+        fontSize=21,
+        leading=25,
         alignment=TA_CENTER,
         spaceAfter=8,
     )
 
-    meta_style = ParagraphStyle(
-        "RoadXAIMeta",
-        parent=base_styles["Normal"],
+    metadata_style = ParagraphStyle(
+        "RoadXAIMetadata",
+        parent=styles["Normal"],
         fontSize=9,
         leading=13,
-        textColor=colors.HexColor("#555555"),
+        alignment=TA_CENTER,
+        textColor=colors.HexColor(
+            "#555555"
+        ),
+        spaceAfter=3,
     )
 
-    heading_style = ParagraphStyle(
-        "RoadXAIHeading",
-        parent=base_styles["Heading2"],
+    section_style = ParagraphStyle(
+        "RoadXAISection",
+        parent=styles["Heading2"],
         fontSize=14,
         leading=18,
-        spaceBefore=10,
-        spaceAfter=7,
+        alignment=TA_LEFT,
+        spaceBefore=12,
+        spaceAfter=6,
+        keepWithNext=True,
     )
 
     body_style = ParagraphStyle(
         "RoadXAIBody",
-        parent=base_styles["BodyText"],
-        fontSize=10,
-        leading=15,
+        parent=styles["BodyText"],
+        fontSize=10.5,
+        leading=16,
+        alignment=TA_LEFT,
         spaceAfter=8,
     )
 
-    small_style = ParagraphStyle(
-        "RoadXAISmall",
-        parent=base_styles["BodyText"],
-        fontSize=8.5,
-        leading=12,
-        textColor=colors.HexColor("#555555"),
+    footer_style = ParagraphStyle(
+        "RoadXAIFooter",
+        parent=styles["Normal"],
+        fontSize=8,
+        leading=10,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor(
+            "#666666"
+        ),
     )
 
     story = []
 
+    # ------------------------------------------------------------------
+    # Header
+    # ------------------------------------------------------------------
+
     story.append(
         Paragraph(
-            _pdf_paragraph(report.title),
+            report.title,
             title_style,
         )
     )
 
     story.append(
         Paragraph(
-            "Automated Road Defect Assessment",
-            ParagraphStyle(
-                "Subtitle",
-                parent=base_styles["Normal"],
-                alignment=TA_CENTER,
-                fontSize=10,
-                textColor=colors.HexColor("#555555"),
-                spaceAfter=12,
-            ),
+            f"Report ID: {report.report_id}",
+            metadata_style,
         )
     )
-
-    metadata = [
-        [
-            Paragraph("<b>Report ID</b>", small_style),
-            Paragraph(
-                _pdf_paragraph(report.report_id),
-                small_style,
-            ),
-        ],
-        [
-            Paragraph("<b>Generated</b>", small_style),
-            Paragraph(
-                _pdf_paragraph(report.generated_at),
-                small_style,
-            ),
-        ],
-        [
-            Paragraph("<b>Image</b>", small_style),
-            Paragraph(
-                _pdf_paragraph(
-                    report.image_name or "Not specified"
-                ),
-                small_style,
-            ),
-        ],
-    ]
-
-    meta_table = Table(
-        metadata,
-        colWidths=[30 * mm, 145 * mm],
-    )
-
-    meta_table.setStyle(
-        TableStyle(
-            [
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                ("TOPPADDING", (0, 0), (-1, -1), 5),
-            ]
-        )
-    )
-
-    story.append(meta_table)
-    story.append(Spacer(1, 8))
-
-    story.append(
-        HRFlowable(
-            width="100%",
-            thickness=0.8,
-            color=colors.HexColor("#999999"),
-        )
-    )
-
-    story.append(Spacer(1, 8))
 
     story.append(
         Paragraph(
-            "<b>Important:</b> This is an automated image-analysis "
-            "assessment. Field verification is required before "
-            "engineering or repair decisions.",
-            body_style,
+            f"Generated: {report.generated_at}",
+            metadata_style,
         )
     )
 
-    for index, section in enumerate(
-        report.sections,
-        start=1,
-    ):
+    if report.image_name:
         story.append(
             Paragraph(
-                _pdf_paragraph(
-                    f"{index}. {section.title}"
-                ),
-                heading_style,
+                f"Image: {report.image_name}",
+                metadata_style,
             )
         )
 
-        story.append(
+    story.append(
+        Spacer(
+            1,
+            10,
+        )
+    )
+
+    # ------------------------------------------------------------------
+    # Sections
+    # ------------------------------------------------------------------
+
+    for section in report.sections:
+
+        section_title = (
+            str(section.title)
+            .replace("&", "&amp;")
+        )
+
+        section_content = (
+            str(section.content)
+            .strip()
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br/>")
+        )
+
+        block = [
             Paragraph(
-                _pdf_paragraph(section.content),
+                section_title,
+                section_style,
+            ),
+            Paragraph(
+                section_content,
                 body_style,
+            ),
+        ]
+
+        story.append(
+            KeepTogether(block)
+        )
+
+    # ------------------------------------------------------------------
+    # Footer
+    # ------------------------------------------------------------------
+
+    story.append(
+        Spacer(
+            1,
+            12,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "RoadXAI automated inspection report. "
+            "Results should be validated through appropriate "
+            "field inspection before maintenance decisions.",
+            footer_style,
+        )
+    )
+
+    def add_page_number(
+        canvas,
+        doc,
+    ):
+        canvas.saveState()
+
+        canvas.setFont(
+            "Helvetica",
+            8,
+        )
+
+        canvas.setFillColor(
+            colors.HexColor(
+                "#666666"
             )
         )
 
-        if section.title == "Engineering Measurements":
-            measurements = section.data.get(
-                "measurements",
-                [],
-            )
+        canvas.drawCentredString(
+            A4[0] / 2,
+            8 * mm,
+            f"RoadXAI | Page {doc.page}",
+        )
 
-            if measurements:
-                table_data = [
-                    [
-                        "Defect",
-                        "Area (px)",
-                        "Length (px)",
-                        "Width (px)",
-                    ]
-                ]
+        canvas.restoreState()
 
-                for item in measurements:
-                    table_data.append(
-                        [
-                            str(item["defect_number"]),
-                            _format_number(
-                                item.get("area_pixels")
-                            ),
-                            _format_number(
-                                item.get("length_pixels")
-                            ),
-                            _format_number(
-                                item.get("width_pixels")
-                            ),
-                        ]
-                    )
-
-                table = Table(
-                    table_data,
-                    colWidths=[
-                        25 * mm,
-                        42 * mm,
-                        42 * mm,
-                        42 * mm,
-                    ],
-                    repeatRows=1,
-                )
-
-                table.setStyle(
-                    TableStyle(
-                        [
-                            (
-                                "BACKGROUND",
-                                (0, 0),
-                                (-1, 0),
-                                colors.HexColor("#E8E8E8"),
-                            ),
-                            (
-                                "TEXTCOLOR",
-                                (0, 0),
-                                (-1, 0),
-                                colors.black,
-                            ),
-                            (
-                                "GRID",
-                                (0, 0),
-                                (-1, -1),
-                                0.35,
-                                colors.HexColor("#AAAAAA"),
-                            ),
-                            (
-                                "FONTNAME",
-                                (0, 0),
-                                (-1, 0),
-                                "Helvetica-Bold",
-                            ),
-                            (
-                                "FONTSIZE",
-                                (0, 0),
-                                (-1, -1),
-                                8.5,
-                            ),
-                            (
-                                "ALIGN",
-                                (0, 0),
-                                (-1, -1),
-                                "CENTER",
-                            ),
-                            (
-                                "VALIGN",
-                                (0, 0),
-                                (-1, -1),
-                                "MIDDLE",
-                            ),
-                            (
-                                "TOPPADDING",
-                                (0, 0),
-                                (-1, -1),
-                                5,
-                            ),
-                            (
-                                "BOTTOMPADDING",
-                                (0, 0),
-                                (-1, -1),
-                                5,
-                            ),
-                        ]
-                    )
-                )
-
-                story.append(table)
-                story.append(Spacer(1, 8))
-
-        elif section.title == "Severity Assessment":
-            severity_items = section.data.get(
-                "severity",
-                [],
-            )
-
-            if severity_items:
-                severity_table = [
-                    [
-                        "Defect",
-                        "Severity",
-                        "Score",
-                        "What it means",
-                    ]
-                ]
-
-                for item in severity_items:
-                    score = item.get("score")
-                    severity_table.append(
-                        [
-                            str(item["defect_number"]),
-                            item["level"].upper(),
-                            (
-                                f"{score:.2f}"
-                                if score is not None
-                                else "N/A"
-                            ),
-                            Paragraph(
-                                _pdf_paragraph(
-                                    item["meaning"]
-                                ),
-                                small_style,
-                            ),
-                        ]
-                    )
-
-                table = Table(
-                    severity_table,
-                    colWidths=[
-                        20 * mm,
-                        30 * mm,
-                        25 * mm,
-                        95 * mm,
-                    ],
-                    repeatRows=1,
-                )
-
-                table.setStyle(
-                    TableStyle(
-                        [
-                            (
-                                "BACKGROUND",
-                                (0, 0),
-                                (-1, 0),
-                                colors.HexColor("#E8E8E8"),
-                            ),
-                            (
-                                "GRID",
-                                (0, 0),
-                                (-1, -1),
-                                0.35,
-                                colors.HexColor("#AAAAAA"),
-                            ),
-                            (
-                                "FONTNAME",
-                                (0, 0),
-                                (-1, 0),
-                                "Helvetica-Bold",
-                            ),
-                            (
-                                "FONTSIZE",
-                                (0, 0),
-                                (-1, -1),
-                                8.5,
-                            ),
-                            (
-                                "ALIGN",
-                                (0, 0),
-                                (2, -1),
-                                "CENTER",
-                            ),
-                            (
-                                "VALIGN",
-                                (0, 0),
-                                (-1, -1),
-                                "TOP",
-                            ),
-                            (
-                                "TOPPADDING",
-                                (0, 0),
-                                (-1, -1),
-                                5,
-                            ),
-                            (
-                                "BOTTOMPADDING",
-                                (0, 0),
-                                (-1, -1),
-                                5,
-                            ),
-                        ]
-                    )
-                )
-
-                story.append(table)
-                story.append(Spacer(1, 8))
-
-        elif section.title == "Repair Cost Estimate":
-            if section.data.get("available"):
-                cost_text = (
-                    f"Estimated affected area: "
-                    f"{section.data['estimated_area_m2']:.4f} m²<br/>"
-                    f"Repair rate: "
-                    f"{section.data['currency']} "
-                    f"{section.data['rate_per_m2']:,.2f} per m²<br/>"
-                    f"Estimated amount: "
-                    f"{section.data['currency']} "
-                    f"{section.data['estimated_cost']:,.2f}"
-                )
-            else:
-                cost_text = (
-                    "<b>No monetary estimate available.</b><br/>"
-                    "A validated pixel-to-meter calibration and a "
-                    "repair rate per square meter are required."
-                )
-
-            story.append(
-                Paragraph(
-                    cost_text,
-                    body_style,
-                )
-            )
-
-        story.append(Spacer(1, 5))
-
-    document.build(story)
+    document.build(
+        story,
+        onFirstPage=add_page_number,
+        onLaterPages=add_page_number,
+    )
 
     return path
+
+
+# ============================================================================
+# PUBLIC API
+# ============================================================================
 
 
 __all__ = [
@@ -1656,13 +1608,13 @@ __all__ = [
     "create_detection_section",
     "create_measurement_section",
     "create_severity_section",
+    "create_cost_section",
     "create_xai_section",
     "create_3d_section",
-    "create_cost_section",
     "create_recommendations_section",
     "generate_report",
-    "render_report_text",
     "save_json_report",
+    "render_report_text",
     "save_text_report",
     "generate_pdf_report",
 ]
