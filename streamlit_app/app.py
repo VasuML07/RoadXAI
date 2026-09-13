@@ -1,25 +1,26 @@
-
 """
 RoadXAI Streamlit Application.
 
-End-to-end image analysis interface for:
-- road-defect segmentation
-- probability visualization
-- engineering measurements
-- Grad-CAM explanation
-- image-aligned 3D visualization
-- report generation
+Two user-facing views:
 
-Scope:
-This application provides image-based inspection support. It does not
-measure physical defect depth, certify road safety, determine structural
-load capacity, or provide a guaranteed repair diagnosis/cost.
+1. Road Inspection
+2. Advanced Analysis
+
+The application provides AI-assisted road-defect screening,
+engineering measurements, explainable AI, interactive 3D
+visualization, and report generation.
+
+Important:
+A single RGB image does not provide validated physical depth.
+3D depth is therefore visualization geometry unless calibrated
+depth information is supplied.
 """
 
 from __future__ import annotations
 
 import hashlib
 import importlib
+import inspect
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,9 +31,9 @@ import streamlit as st
 import torch
 
 
-# ---------------------------------------------------------------------------
-# Project paths
-# ---------------------------------------------------------------------------
+# ============================================================================
+# PROJECT PATHS
+# ============================================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -40,15 +41,18 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 CHECKPOINT_PATH = (
-    PROJECT_ROOT / "checkpoints" / "crack500" / "best.pt"
+    PROJECT_ROOT
+    / "checkpoints"
+    / "crack500"
+    / "best.pt"
 )
 
 REPORT_DIR = PROJECT_ROOT / "reports"
 
 
-# ---------------------------------------------------------------------------
-# RoadXAI imports
-# ---------------------------------------------------------------------------
+# ============================================================================
+# ROADXAI IMPORTS
+# ============================================================================
 
 from cnn_model.module import build_model
 from deployment.module import load_model
@@ -65,7 +69,9 @@ from streamlit_app.module import (
     create_mask_overlay,
 )
 
-from engineering_analysis.module import analyze_road
+from engineering_analysis.module import (
+    analyze_road,
+)
 
 from explainable_ai.module import (
     generate_heatmap,
@@ -74,7 +80,9 @@ from explainable_ai.module import (
     get_default_target_layer,
 )
 
-from report_generation.module import generate_report
+from report_generation.module import (
+    generate_report,
+)
 
 from report_generation.utils import (
     render_report_text,
@@ -82,6 +90,7 @@ from report_generation.utils import (
     save_text_report,
     generate_pdf_report,
 )
+
 
 visualization_module = importlib.import_module(
     "3d_visualization.module"
@@ -92,26 +101,207 @@ generate_3d_visualization = (
 )
 
 
-CHECKPOINT_PATH = (
-    PROJECT_ROOT
-    / "checkpoints"
-    / "crack500"
-    / "best.pt"
-)
-
-REPORT_DIR = PROJECT_ROOT / "reports"
-
+# ============================================================================
+# STREAMLIT CONFIGURATION
+# ============================================================================
 
 st.set_page_config(
     page_title="RoadXAI",
-    page_icon="RoadXAI",
+    page_icon="🛣️",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
+
+
+# ============================================================================
+# SAFE VALUE HELPERS
+# ============================================================================
+
+
+def safe_float(
+    value: Any,
+    default: float = 0.0,
+) -> float:
+    """Convert a value to a finite float."""
+
+    try:
+        result = float(value)
+
+        if np.isfinite(result):
+            return result
+
+        return default
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return default
+
+
+def optional_float(
+    value: Any,
+) -> float | None:
+    """Convert a value to a finite float or None."""
+
+    if value is None:
+        return None
+
+    try:
+        result = float(value)
+
+        if np.isfinite(result):
+            return result
+
+        return None
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+def get_value(
+    source: Any,
+    key: str,
+    default: Any = None,
+) -> Any:
+    """Read a value from either a dictionary or an object."""
+
+    if source is None:
+        return default
+
+    if isinstance(
+        source,
+        dict,
+    ):
+        return source.get(
+            key,
+            default,
+        )
+
+    return getattr(
+        source,
+        key,
+        default,
+    )
+
+
+def readable_value(
+    value: Any,
+) -> str:
+    """Convert enum-like values into readable text."""
+
+    if value is None:
+        return "Unknown"
+
+    if hasattr(
+        value,
+        "value",
+    ):
+        value = value.value
+
+    return str(
+        value
+    ).replace(
+        "_",
+        " ",
+    )
+
+
+# ============================================================================
+# IMAGE STATE
+# ============================================================================
+
+
+def make_image_key(
+    uploaded_file: Any,
+    image: Any,
+) -> str:
+    """Create a stable identifier for the uploaded image."""
+
+    if hasattr(
+        image,
+        "convert",
+    ):
+        image_array = np.asarray(
+            image.convert("RGB")
+        )
+    else:
+        image_array = np.asarray(
+            image
+        )
+
+    if (
+        image_array.ndim != 3
+        or image_array.shape[2] != 3
+    ):
+        raise ValueError(
+            "Uploaded image must have shape [H, W, 3]."
+        )
+
+    image_array = np.ascontiguousarray(
+        image_array,
+        dtype=np.uint8,
+    )
+
+    digest = hashlib.sha256(
+        image_array.tobytes()
+    ).hexdigest()[:16]
+
+    filename = getattr(
+        uploaded_file,
+        "name",
+        "image",
+    )
+
+    return (
+        f"{filename}|"
+        f"{digest}|"
+        f"{image_array.shape}"
+    )
+
+
+def clear_stale_analysis_state(
+    image_key: str,
+) -> None:
+    """Clear cached analysis results when a new image is uploaded."""
+
+    previous_key = st.session_state.get(
+        "analysis_image_key"
+    )
+
+    if previous_key == image_key:
+        return
+
+    st.session_state[
+        "analysis_image_key"
+    ] = image_key
+
+    for key in (
+        "xai_result",
+        "xai_image_key",
+        "visualization_result",
+        "visualization_key",
+        "report",
+        "report_image_key",
+    ):
+        st.session_state.pop(
+            key,
+            None,
+        )
+
+
+# ============================================================================
+# MODEL
+# ============================================================================
 
 
 @st.cache_resource
 def load_roadxai_model():
     """Load the trained CRACK500 model once."""
+
     model = build_model(
         base_channels=16
     )
@@ -123,96 +313,40 @@ def load_roadxai_model():
     )
 
 
-def prepare_xai_tensor(
-    input_tensor: torch.Tensor,
-) -> torch.Tensor:
-    """Create a normal CPU tensor safe for Grad-CAM autograd."""
-    if not isinstance(
-        input_tensor,
-        torch.Tensor,
-    ):
-        raise TypeError(
-            "Inference input must be a torch.Tensor."
-        )
+# ============================================================================
+# DEFECT RECORDS
+# ============================================================================
 
-    array = (
-        input_tensor
-        .detach()
-        .cpu()
-        .numpy()
-        .copy()
-    )
-
-    return torch.tensor(
-        array,
-        dtype=torch.float32,
-        device="cpu",
-    )
-
-
-def readable_value(value: Any) -> str:
-    if value is None:
-        return "Unknown"
-
-    if hasattr(value, "value"):
-        value = value.value
-
-    return str(value).replace("_", " ")
-
-
-def make_image_key(uploaded_file: Any, image: Any) -> str:
-    if hasattr(image, "convert"):
-        array = np.asarray(image.convert("RGB"))
-    else:
-        array = np.asarray(image)
-
-    if array.ndim != 3 or array.shape[2] != 3:
-        raise ValueError("Uploaded image must be an RGB image.")
-
-    digest = hashlib.sha256(
-        array.astype(np.uint8).tobytes()
-    ).hexdigest()[:16]
-
-    return f"{uploaded_file.name}|{digest}|{array.shape}"
-
-
-def clear_image_state(image_key: str) -> None:
-    previous = st.session_state.get("roadxai_image_key")
-
-    if previous == image_key:
-        return
-
-    st.session_state["roadxai_image_key"] = image_key
-
-    for key in (
-        "xai_result",
-        "xai_image_key",
-        "visualization_result",
-        "visualization_key",
-        "report",
-        "report_image_key",
-    ):
-        st.session_state.pop(key, None)
-
-
-# ---------------------------------------------------------------------------
-# Defect records
-# ---------------------------------------------------------------------------
 
 def build_defect_records(
     engineering_result: Any,
 ) -> list[dict[str, Any]]:
+    """Create UI-friendly defect records."""
+
     defects = list(
-        get_value(engineering_result, "defects", []) or []
+        get_value(
+            engineering_result,
+            "defects",
+            [],
+        )
+        or []
     )
 
     severities = list(
-        get_value(engineering_result, "severity", []) or []
+        get_value(
+            engineering_result,
+            "severity",
+            [],
+        )
+        or []
     )
 
     records: list[dict[str, Any]] = []
 
-    for index, defect in enumerate(defects, start=1):
+    for index, defect in enumerate(
+        defects,
+        start=1,
+    ):
         severity = (
             severities[index - 1]
             if index - 1 < len(severities)
@@ -220,21 +354,41 @@ def build_defect_records(
         )
 
         level = readable_value(
-            get_value(severity, "level", "Unknown")
+            get_value(
+                severity,
+                "level",
+                "Unknown",
+            )
         )
 
         score = safe_float(
-            get_value(severity, "score", 0.0)
+            get_value(
+                severity,
+                "score",
+                0.0,
+            )
         )
 
         level_lower = level.lower()
 
-        if "critical" in level_lower or score >= 75:
+        if (
+            "critical" in level_lower
+            or score >= 75
+        ):
             priority = "Critical"
-        elif "high" in level_lower or score >= 50:
+
+        elif (
+            "high" in level_lower
+            or score >= 50
+        ):
             priority = "High"
-        elif "moderate" in level_lower or score >= 25:
+
+        elif (
+            "moderate" in level_lower
+            or score >= 25
+        ):
             priority = "Moderate"
+
         else:
             priority = "Low"
 
@@ -245,28 +399,60 @@ def build_defect_records(
                 "score": score,
                 "priority": priority,
                 "area_pixels": safe_float(
-                    get_value(defect, "area_pixels", 0.0)
+                    get_value(
+                        defect,
+                        "area_pixels",
+                        0.0,
+                    )
                 ),
                 "length_pixels": safe_float(
-                    get_value(defect, "length_pixels", 0.0)
+                    get_value(
+                        defect,
+                        "length_pixels",
+                        0.0,
+                    )
                 ),
                 "width_pixels": safe_float(
-                    get_value(defect, "width_pixels", 0.0)
+                    get_value(
+                        defect,
+                        "width_pixels",
+                        0.0,
+                    )
                 ),
                 "centroid_x": safe_float(
-                    get_value(defect, "centroid_x", 0.0)
+                    get_value(
+                        defect,
+                        "centroid_x",
+                        0.0,
+                    )
                 ),
                 "centroid_y": safe_float(
-                    get_value(defect, "centroid_y", 0.0)
+                    get_value(
+                        defect,
+                        "centroid_y",
+                        0.0,
+                    )
                 ),
                 "area_m2": optional_float(
-                    get_value(defect, "area_m2", None)
+                    get_value(
+                        defect,
+                        "area_m2",
+                        None,
+                    )
                 ),
                 "length_m": optional_float(
-                    get_value(defect, "length_m", None)
+                    get_value(
+                        defect,
+                        "length_m",
+                        None,
+                    )
                 ),
                 "width_m": optional_float(
-                    get_value(defect, "width_m", None)
+                    get_value(
+                        defect,
+                        "width_m",
+                        None,
+                    )
                 ),
                 "explanation": str(
                     get_value(
@@ -290,44 +476,99 @@ def build_defect_records(
     return records
 
 
-# ---------------------------------------------------------------------------
-# Numbered overlay
-# ---------------------------------------------------------------------------
+# ============================================================================
+# NUMBERED DEFECT OVERLAY
+# ============================================================================
+
 
 def make_numbered_defect_overlay(
     original_image: np.ndarray,
     prediction_mask: np.ndarray,
     engineering_result: Any,
 ) -> np.ndarray:
+    """Draw the segmentation mask and numbered defect locations."""
+
     image = np.asarray(
-        original_image,
-        dtype=np.uint8,
-    ).copy()
+        original_image
+    )
+
+    if (
+        image.ndim != 3
+        or image.shape[2] != 3
+    ):
+        raise ValueError(
+            "original_image must have shape [H, W, 3]."
+        )
+
+    image = np.clip(
+        image,
+        0,
+        255,
+    ).astype(
+        np.uint8
+    )
 
     mask = np.squeeze(
-        np.asarray(prediction_mask)
+        np.asarray(
+            prediction_mask
+        )
     )
 
     if mask.ndim != 2:
-        raise ValueError("prediction_mask must be 2D.")
+        raise ValueError(
+            "prediction_mask must be 2D."
+        )
+
+    binary_mask = (
+        mask > 0
+    ).astype(
+        np.uint8
+    )
 
     image_h, image_w = image.shape[:2]
-    mask_h, mask_w = mask.shape
+    mask_h, mask_w = binary_mask.shape
 
     resized_mask = cv2.resize(
-        (mask > 0).astype(np.uint8),
-        (image_w, image_h),
+        binary_mask,
+        (
+            image_w,
+            image_h,
+        ),
         interpolation=cv2.INTER_NEAREST,
     )
 
-    result = image.copy()
+    # Use the project's mask-overlay helper.
+    try:
+        result = create_mask_overlay(
+            image.copy(),
+            resized_mask,
+            alpha=0.32,
+        )
+    except Exception:
+        # Safe fallback if the helper has a different signature.
+        result = image.copy()
 
-    # Use the existing overlay implementation for the mask.
-    result = create_mask_overlay(
-        result,
-        resized_mask,
-        alpha=0.32,
-    )
+        damage = resized_mask.astype(bool)
+
+        overlay_color = np.zeros_like(
+            result
+        )
+
+        overlay_color[
+            damage
+        ] = (
+            255,
+            60,
+            60,
+        )
+
+        result = cv2.addWeighted(
+            result,
+            0.68,
+            overlay_color,
+            0.32,
+            0,
+        )
 
     defects = list(
         get_value(
@@ -338,21 +579,63 @@ def make_numbered_defect_overlay(
         or []
     )
 
-    for index, defect in enumerate(defects, start=1):
-        x = safe_float(
-            get_value(defect, "centroid_x", 0.0)
+    for index, defect in enumerate(
+        defects,
+        start=1,
+    ):
+        source_x = safe_float(
+            get_value(
+                defect,
+                "centroid_x",
+                0.0,
+            )
         )
-        y = safe_float(
-            get_value(defect, "centroid_y", 0.0)
+
+        source_y = safe_float(
+            get_value(
+                defect,
+                "centroid_y",
+                0.0,
+            )
         )
 
-        x = int(round(x * image_w / max(mask_w, 1)))
-        y = int(round(y * image_h / max(mask_h, 1)))
+        x = int(
+            round(
+                source_x
+                * image_w
+                / max(mask_w, 1)
+            )
+        )
 
-        x = max(20, min(image_w - 20, x))
-        y = max(20, min(image_h - 20, y))
+        y = int(
+            round(
+                source_y
+                * image_h
+                / max(mask_h, 1)
+            )
+        )
 
-        radius = 18 if image_w >= 700 else 14
+        x = max(
+            20,
+            min(
+                image_w - 20,
+                x,
+            ),
+        )
+
+        y = max(
+            20,
+            min(
+                image_h - 20,
+                y,
+            ),
+        )
+
+        radius = (
+            18
+            if image_w >= 700
+            else 14
+        )
 
         cv2.circle(
             result,
@@ -372,14 +655,20 @@ def make_numbered_defect_overlay(
             lineType=cv2.LINE_AA,
         )
 
-        text = str(index)
+        label = str(index)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
-        scale = 0.55 if index < 10 else 0.43
+
+        scale = (
+            0.55
+            if index < 10
+            else 0.43
+        )
+
         thickness = 2
 
         text_size, _ = cv2.getTextSize(
-            text,
+            label,
             font,
             scale,
             thickness,
@@ -389,7 +678,7 @@ def make_numbered_defect_overlay(
 
         cv2.putText(
             result,
-            text,
+            label,
             (
                 x - text_w // 2,
                 y + text_h // 2,
@@ -404,21 +693,119 @@ def make_numbered_defect_overlay(
     return result
 
 
-# ---------------------------------------------------------------------------
+# ============================================================================
+# PROBABILITY VISUALIZATION
+# ============================================================================
+
+
+def make_probability_visualization(
+    probability_map: np.ndarray,
+    original_image: np.ndarray,
+) -> dict[str, np.ndarray]:
+    """Create probability-map visualizations."""
+
+    probability = np.asarray(
+        probability_map,
+        dtype=np.float32,
+    )
+
+    probability = np.squeeze(
+        probability
+    )
+
+    if probability.ndim != 2:
+        raise ValueError(
+            "Probability map must be 2D."
+        )
+
+    probability = np.nan_to_num(
+        probability,
+        nan=0.0,
+        posinf=1.0,
+        neginf=0.0,
+    )
+
+    probability = np.clip(
+        probability,
+        0.0,
+        1.0,
+    )
+
+    probability_u8 = (
+        probability * 255.0
+    ).astype(
+        np.uint8
+    )
+
+    color_bgr = cv2.applyColorMap(
+        probability_u8,
+        cv2.COLORMAP_JET,
+    )
+
+    color_rgb = cv2.cvtColor(
+        color_bgr,
+        cv2.COLOR_BGR2RGB,
+    )
+
+    image_rgb = np.asarray(
+        original_image
+    )
+
+    image_rgb = np.clip(
+        image_rgb,
+        0,
+        255,
+    ).astype(
+        np.uint8
+    )
+
+    if (
+        color_rgb.shape[:2]
+        != image_rgb.shape[:2]
+    ):
+        color_rgb = cv2.resize(
+            color_rgb,
+            (
+                image_rgb.shape[1],
+                image_rgb.shape[0],
+            ),
+            interpolation=cv2.INTER_LINEAR,
+        )
+
+    overlay = cv2.addWeighted(
+        image_rgb,
+        0.55,
+        color_rgb,
+        0.45,
+        0,
+    )
+
+    return {
+        "grayscale": probability_u8,
+        "color": color_rgb,
+        "overlay": overlay,
+    }
+
+
+# ============================================================================
 # XAI
-# ---------------------------------------------------------------------------
+# ============================================================================
 
-def run_gradcam(
-    model: torch.nn.Module,
+
+def prepare_xai_tensor(
     input_tensor: torch.Tensor,
-) -> dict[str, Any]:
-    if not isinstance(input_tensor, torch.Tensor):
-        raise TypeError("input_tensor must be a torch.Tensor.")
+) -> torch.Tensor:
+    """Create a fresh tensor suitable for Grad-CAM autograd."""
 
-    # Inference is executed under torch.inference_mode() in the
-    # Streamlit inference helper. Grad-CAM needs a fresh normal tensor
-    # that can participate in autograd.
-    input_array = (
+    if not isinstance(
+        input_tensor,
+        torch.Tensor,
+    ):
+        raise TypeError(
+            "input_tensor must be a torch.Tensor."
+        )
+
+    array = (
         input_tensor
         .detach()
         .cpu()
@@ -426,16 +813,28 @@ def run_gradcam(
         .copy()
     )
 
-    xai_input = torch.tensor(
-        input_array,
+    return torch.tensor(
+        array,
         dtype=torch.float32,
         device="cpu",
-        requires_grad=True,
     )
 
-    target_layer = get_default_target_layer(model)
 
-    heatmap = generate_heatmap(
+def run_xai(
+    model: torch.nn.Module,
+    input_tensor: torch.Tensor,
+) -> dict[str, Any]:
+    """Generate a robust Grad-CAM explanation."""
+
+    xai_input = prepare_xai_tensor(
+        input_tensor
+    )
+
+    target_layer = get_default_target_layer(
+        model
+    )
+
+    raw_heatmap = generate_heatmap(
         model=model,
         image=xai_input,
         target_layer=target_layer,
@@ -443,14 +842,21 @@ def run_gradcam(
         target_class=0,
     )
 
-    heatmap_array = heatmap_to_numpy(heatmap)
-    heatmap_array = np.asarray(
-        heatmap_array,
-        dtype=np.float32,
+    heatmap_tensor = heatmap_to_tensor(
+        raw_heatmap
+    )
+
+    heatmap_array = heatmap_to_numpy(
+        heatmap_tensor
     )
 
     if heatmap_array.ndim == 3:
         heatmap_array = heatmap_array[0]
+
+    heatmap_array = np.asarray(
+        heatmap_array,
+        dtype=np.float32,
+    )
 
     heatmap_array = np.nan_to_num(
         heatmap_array,
@@ -459,8 +865,13 @@ def run_gradcam(
         neginf=0.0,
     )
 
-    minimum = float(heatmap_array.min())
-    maximum = float(heatmap_array.max())
+    minimum = float(
+        heatmap_array.min()
+    )
+
+    maximum = float(
+        heatmap_array.max()
+    )
 
     if maximum > minimum:
         heatmap_array = (
@@ -468,49 +879,133 @@ def run_gradcam(
         ) / (
             maximum - minimum
         )
+
     else:
         heatmap_array = np.zeros_like(
             heatmap_array
         )
 
-    input_image = (
+    heatmap_array = np.clip(
+        heatmap_array,
+        0.0,
+        1.0,
+    )
+
+    image_array = (
         xai_input[0]
         .detach()
         .cpu()
         .numpy()
-        .transpose(1, 2, 0)
+        .transpose(
+            1,
+            2,
+            0,
+        )
     )
 
-    input_image = np.clip(
-        input_image * 255.0,
+    image_array = np.clip(
+        image_array * 255.0,
         0,
         255,
-    ).astype(np.uint8)
-
-    # Keep the heatmap tensor shape compatible with the XAI module.
-    heatmap_for_overlay = heatmap_array
+    ).astype(
+        np.uint8
+    )
 
     overlay = overlay_heatmap(
-        input_image,
-        heatmap_for_overlay,
+        image_array,
+        heatmap_array,
         alpha=0.45,
     )
 
     return {
         "method": "Grad-CAM",
-        "target_layer": str(target_layer),
+        "target_layer": target_layer,
         "heatmap": heatmap_array,
         "overlay": overlay,
     }
 
 
-# ---------------------------------------------------------------------------
-# Health / priority
-# ---------------------------------------------------------------------------
+def heatmap_to_tensor(
+    heatmap: Any,
+) -> torch.Tensor:
+    """Normalize a heatmap into [1, H, W]."""
+
+    if isinstance(
+        heatmap,
+        torch.Tensor,
+    ):
+        result = (
+            heatmap
+            .detach()
+            .cpu()
+            .float()
+        )
+
+    elif isinstance(
+        heatmap,
+        np.ndarray,
+    ):
+        result = torch.from_numpy(
+            np.asarray(
+                heatmap,
+                dtype=np.float32,
+            ).copy()
+        )
+
+    else:
+        raise TypeError(
+            "Heatmap must be a torch.Tensor "
+            "or NumPy array."
+        )
+
+    if result.ndim == 2:
+        result = result.unsqueeze(0)
+
+    if result.ndim != 3:
+        raise ValueError(
+            "Expected heatmap with shape [H,W] "
+            "or [1,H,W]."
+        )
+
+    result = torch.nan_to_num(
+        result,
+        nan=0.0,
+        posinf=1.0,
+        neginf=0.0,
+    )
+
+    minimum = result.amin(
+        dim=(-2, -1),
+        keepdim=True,
+    )
+
+    maximum = result.amax(
+        dim=(-2, -1),
+        keepdim=True,
+    )
+
+    result = (
+        result - minimum
+    ) / (
+        maximum - minimum + 1e-8
+    )
+
+    return result.clamp(
+        0.0,
+        1.0,
+    )
+
+
+# ============================================================================
+# HEALTH / PRIORITY
+# ============================================================================
+
 
 def health_summary(
     engineering_result: Any,
 ) -> tuple[float | None, str]:
+    """Extract road-health score and condition."""
+
     health = get_value(
         engineering_result,
         "road_health",
@@ -518,20 +1013,33 @@ def health_summary(
     )
 
     score = optional_float(
-        get_value(health, "score", None)
+        get_value(
+            health,
+            "score",
+            None,
+        )
     )
 
     condition = readable_value(
-        get_value(health, "condition", "Unknown")
+        get_value(
+            health,
+            "condition",
+            "Unknown",
+        )
     )
 
-    return score, condition
+    return (
+        score,
+        condition,
+    )
 
 
 def affected_percentage(
     engineering_result: Any,
     mask: np.ndarray,
 ) -> float:
+    """Calculate percentage of image affected by detected defects."""
+
     health = get_value(
         engineering_result,
         "road_health",
@@ -564,9 +1072,18 @@ def affected_percentage(
             )
         )
 
+    mask_array = np.asarray(
+        mask
+    )
+
+    if mask_array.size == 0:
+        return 0.0
+
     return float(
-        np.count_nonzero(mask)
-        / max(mask.size, 1)
+        np.count_nonzero(
+            mask_array
+        )
+        / mask_array.size
         * 100.0
     )
 
@@ -575,6 +1092,8 @@ def maintenance_priority(
     records: list[dict[str, Any]],
     affected: float,
 ) -> str:
+    """Determine maintenance priority."""
+
     if any(
         item["priority"] == "Critical"
         for item in records
@@ -604,18 +1123,28 @@ def inspection_required(
     condition: str,
     confidence: float,
 ) -> bool:
+    """Determine whether field inspection should be prioritized."""
+
     serious = any(
         item["priority"]
-        in {"High", "Critical"}
+        in {
+            "High",
+            "Critical",
+        }
         for item in records
     )
 
     poor_condition = (
         condition.lower()
-        in {"poor", "critical"}
+        in {
+            "poor",
+            "critical",
+        }
     )
 
-    low_confidence = confidence < 0.65
+    low_confidence = (
+        confidence < 0.65
+    )
 
     return (
         serious
@@ -624,9 +1153,10 @@ def inspection_required(
     )
 
 
-# ---------------------------------------------------------------------------
-# 3D helpers
-# ---------------------------------------------------------------------------
+# ============================================================================
+# 3D
+# ============================================================================
+
 
 def generate_3d(
     inference: Any,
@@ -637,33 +1167,68 @@ def generate_3d(
     show_markers: bool,
     show_boundaries: bool,
 ) -> dict[str, Any]:
+    """Generate the interactive RoadXAI 3D visualization."""
+
     records = build_defect_records(
         engineering_result
     )
 
-    mask = np.asarray(prediction_mask, dtype=np.uint8)
-    road_image = np.asarray(inference.original_image).copy()
-    probability_map = np.asarray(inference.probability_map, dtype=np.float32)
-    xai_heatmap = (
-        st.session_state.get("xai_result", {}).get("heatmap")
-        if st.session_state.get("xai_image_key")
-        == st.session_state.get("roadxai_image_key")
-        else None
+    mask = np.asarray(
+        prediction_mask,
+        dtype=np.uint8,
     )
 
+    road_image = np.asarray(
+        inference.original_image
+    ).copy()
+
+    probability_map = np.asarray(
+        inference.probability_map,
+        dtype=np.float32,
+    )
+
+    xai_heatmap = None
+
+    xai_result = st.session_state.get(
+        "xai_result"
+    )
+
+    if (
+        xai_result is not None
+        and st.session_state.get(
+            "xai_image_key"
+        )
+        == st.session_state.get(
+            "analysis_image_key"
+        )
+    ):
+        xai_heatmap = xai_result.get(
+            "heatmap"
+        )
+
     try:
-        import inspect
-        supported = set(inspect.signature(generate_3d_visualization).parameters)
+        supported = set(
+            inspect.signature(
+                generate_3d_visualization
+            ).parameters
+        )
+
     except Exception:
         supported = set()
 
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "mask": mask,
-        "max_depth": visual_depth,
+        "max_depth": float(
+            visual_depth
+        ),
         "pixel_size": 1.0,
-        "title": "RoadXAI Interactive 3D Inspection",
+        "title": (
+            "RoadXAI Interactive "
+            "3D Inspection"
+        ),
         "road_image": road_image,
     }
+
     optional_kwargs = {
         "engineering_result": engineering_result,
         "probability_map": probability_map,
@@ -671,45 +1236,60 @@ def generate_3d(
         "display_mode": display_mode,
         "show_markers": show_markers,
         "show_boundaries": show_boundaries,
+        "vertical_exaggeration": float(
+            visual_depth
+        ),
+        "confidence": safe_float(
+            get_value(
+                inference,
+                "confidence",
+                0.0,
+            )
+        ),
     }
+
     for key, value in optional_kwargs.items():
         if key in supported:
             kwargs[key] = value
 
-    raw = generate_3d_visualization(**kwargs)
+    raw_result = generate_3d_visualization(
+        **kwargs
+    )
 
-    if isinstance(raw, tuple) and len(raw) == 3:
-        heightmap_result, mesh_result, figure = raw
+    if (
+        isinstance(
+            raw_result,
+            tuple,
+        )
+        and len(raw_result) == 3
+    ):
+        heightmap_result = raw_result[0]
+        mesh_result = raw_result[1]
+        figure = raw_result[2]
 
         return {
-            "heightmap": heightmap_result.heightmap,
-            "heightmap_result": heightmap_result,
+            "heightmap": getattr(
+                heightmap_result,
+                "heightmap",
+                None,
+            ),
+            "heightmap_result": (
+                heightmap_result
+            ),
             "mesh": mesh_result,
             "figure": figure,
             "records": records,
         }
 
     return {
-        "figure": raw,
+        "figure": raw_result,
         "records": records,
     }
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-@st.cache_resource
-def load_roadxai_model():
-    model = build_model(
-        base_channels=16
-    )
-
-    return load_model(
-        model,
-        CHECKPOINT_PATH,
-        device="cpu",
-    )
+# ============================================================================
+# REPORT
+# ============================================================================
 
 
 def render_report(
@@ -718,30 +1298,43 @@ def render_report(
     uploaded_file: Any,
     image_key: str,
 ) -> None:
-    st.subheader("Inspection Report")
+    """Generate and display report controls."""
+
+    st.subheader(
+        "Inspection Report"
+    )
 
     st.caption(
-        "Generate one report for the current image. "
-        "The report includes detection, engineering, XAI and 3D results."
+        "Generate JSON, TXT and PDF versions of the "
+        "current RoadXAI assessment."
+    )
+
+    button_key = (
+        f"generate_report_{image_key}"
     )
 
     if st.button(
         "Generate RoadXAI Report",
         type="primary",
-        key=f"generate_report_{image_key}",
+        key=button_key,
     ):
         try:
             xai_result = st.session_state.get(
                 "xai_result"
             )
 
-            if st.session_state.get(
-                "xai_image_key"
-            ) != image_key:
+            if (
+                st.session_state.get(
+                    "xai_image_key"
+                )
+                != image_key
+            ):
                 xai_result = None
 
-            visualization_result = st.session_state.get(
-                "visualization_result"
+            visualization_result = (
+                st.session_state.get(
+                    "visualization_result"
+                )
             )
 
             REPORT_DIR.mkdir(
@@ -749,44 +1342,69 @@ def render_report(
                 exist_ok=True,
             )
 
+            filename = Path(
+                getattr(
+                    uploaded_file,
+                    "name",
+                    "road_inspection",
+                )
+            ).stem
+
             report_base = (
-                REPORT_DIR
-                / Path(
-                    uploaded_file.name
-                ).stem
+                REPORT_DIR / filename
             )
 
             with st.spinner(
-                "Generating report..."
+                "Generating RoadXAI report..."
             ):
                 report = generate_report(
                     engineering_result=engineering_result,
                     inference_result=inference,
                     xai_result=xai_result,
                     visualization_result=visualization_result,
-                    image_name=uploaded_file.name,
-                    title="RoadXAI Road Inspection Report",
+                    image_name=getattr(
+                        uploaded_file,
+                        "name",
+                        None,
+                    ),
+                    title=(
+                        "RoadXAI Road "
+                        "Inspection Report"
+                    ),
                 )
 
                 json_path = save_json_report(
                     report,
-                    report_base.with_suffix(".json"),
+                    report_base.with_suffix(
+                        ".json"
+                    ),
                 )
 
                 text_path = save_text_report(
                     report,
-                    report_base.with_suffix(".txt"),
+                    report_base.with_suffix(
+                        ".txt"
+                    ),
                 )
 
                 pdf_path = generate_pdf_report(
                     report,
-                    report_base.with_suffix(".pdf"),
+                    report_base.with_suffix(
+                        ".pdf"
+                    ),
                 )
 
-            st.session_state["report"] = report
-            st.session_state["report_image_key"] = image_key
+            st.session_state[
+                "report"
+            ] = report
 
-            st.success("Report generated.")
+            st.session_state[
+                "report_image_key"
+            ] = image_key
+
+            st.success(
+                "Report generated successfully."
+            )
 
             c1, c2, c3 = st.columns(3)
 
@@ -796,7 +1414,10 @@ def render_report(
                     data=json_path.read_bytes(),
                     file_name=json_path.name,
                     mime="application/json",
-                    key=f"download_json_{image_key}",
+                    key=(
+                        f"download_json_"
+                        f"{image_key}"
+                    ),
                 )
 
             with c2:
@@ -805,7 +1426,10 @@ def render_report(
                     data=text_path.read_bytes(),
                     file_name=text_path.name,
                     mime="text/plain",
-                    key=f"download_txt_{image_key}",
+                    key=(
+                        f"download_txt_"
+                        f"{image_key}"
+                    ),
                 )
 
             with c3:
@@ -814,7 +1438,10 @@ def render_report(
                     data=pdf_path.read_bytes(),
                     file_name=pdf_path.name,
                     mime="application/pdf",
-                    key=f"download_pdf_{image_key}",
+                    key=(
+                        f"download_pdf_"
+                        f"{image_key}"
+                    ),
                 )
 
         except Exception as exc:
@@ -822,46 +1449,52 @@ def render_report(
                 f"Report generation failed: {exc}"
             )
 
-    report = st.session_state.get("report")
+    report = st.session_state.get(
+        "report"
+    )
 
     if (
         report is not None
         and st.session_state.get(
             "report_image_key"
-        ) == image_key
+        )
+        == image_key
     ):
         with st.expander(
             "Report Preview",
             expanded=False,
         ):
             st.text(
-                render_report_text(report)
+                render_report_text(
+                    report
+                )
             )
 
 
+# ============================================================================
+# MAIN APPLICATION
+# ============================================================================
+
+
 def main() -> None:
+    """Run the RoadXAI Streamlit application."""
+
     create_app_header()
 
-    st.sidebar.subheader("Model")
+    # ------------------------------------------------------------------------
+    # Model validation
+    # ------------------------------------------------------------------------
 
-    model_name = st.sidebar.selectbox(
-        "Defect model",
-        options=list(CHECKPOINTS.keys()),
-        index=0,
-        help=(
-            "Select which trained segmentation model should analyze "
-            "the uploaded image."
-        ),
-    )
-
-    checkpoint_path = CHECKPOINTS[model_name]
-
-    if not checkpoint_path.is_file():
+    if not CHECKPOINT_PATH.exists():
         st.error(
-            "Model checkpoint not found: "
+            "Model checkpoint not found:\n\n"
             f"{CHECKPOINT_PATH}"
         )
         st.stop()
+
+    # ------------------------------------------------------------------------
+    # Sidebar settings
+    # ------------------------------------------------------------------------
 
     threshold, image_size = (
         create_settings_sidebar(
@@ -870,7 +1503,13 @@ def main() -> None:
         )
     )
 
-    uploaded_file = create_upload_section()
+    # ------------------------------------------------------------------------
+    # Upload
+    # ------------------------------------------------------------------------
+
+    uploaded_file = (
+        create_upload_section()
+    )
 
     if uploaded_file is None:
         st.info(
@@ -878,16 +1517,19 @@ def main() -> None:
         )
         return
 
-    # -----------------------------------------------------------------------
-    # Sidebar: 3D controls
-    # -----------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # 3D controls
+    # ------------------------------------------------------------------------
 
     with st.sidebar:
         st.divider()
-        st.subheader("3D Inspection")
+
+        st.subheader(
+            "3D Inspection"
+        )
 
         display_mode = st.selectbox(
-            "Color / analysis mode",
+            "Analysis mode",
             [
                 "Inspection",
                 "Road Surface",
@@ -899,33 +1541,33 @@ def main() -> None:
         )
 
         visual_depth = st.slider(
-            "Visual depth exaggeration",
-            0.20,
-            2.00,
-            0.90,
-            0.10,
+            "Visual depth scale",
+            min_value=0.20,
+            max_value=2.00,
+            value=0.90,
+            step=0.10,
             help=(
-                "Visualization scale only. "
-                "This is not physical pothole depth."
+                "Controls visualization exaggeration only. "
+                "It is not physical pothole depth."
             ),
             key="3d_visual_depth",
         )
 
         show_markers = st.checkbox(
             "Show defect markers",
-            True,
+            value=True,
             key="3d_show_markers",
         )
 
         show_boundaries = st.checkbox(
             "Show defect boundaries",
-            True,
+            value=True,
             key="3d_show_boundaries",
         )
 
-    # -----------------------------------------------------------------------
-    # Image
-    # -----------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # Image conversion
+    # ------------------------------------------------------------------------
 
     try:
         image = uploaded_file_to_image(
@@ -933,21 +1575,51 @@ def main() -> None:
         )
 
         if image is None:
-            st.error("Unable to read the image.")
+            st.error(
+                "Unable to read the uploaded image."
+            )
             return
 
-        if hasattr(image, "convert"):
-            image = image.convert("RGB")
+        if hasattr(
+            image,
+            "convert",
+        ):
+            image = image.convert(
+                "RGB"
+            )
+
+        image_array = np.asarray(
+            image
+        )
+
+        if (
+            image_array.ndim != 3
+            or image_array.shape[2] != 3
+        ):
+            raise ValueError(
+                "Uploaded image must be RGB."
+            )
 
         image_key = make_image_key(
             uploaded_file,
             image,
         )
 
-        clear_image_state(
+        clear_stale_analysis_state(
             image_key
         )
 
+    except Exception as exc:
+        st.error(
+            f"Image loading failed: {exc}"
+        )
+        return
+
+    # ------------------------------------------------------------------------
+    # Inference
+    # ------------------------------------------------------------------------
+
+    try:
         model = load_roadxai_model()
 
         with st.spinner(
@@ -970,34 +1642,104 @@ def main() -> None:
         )
         return
 
-    prediction_mask = np.squeeze(
-        np.asarray(
-            inference.prediction_mask
-        )
-    )
+    # ------------------------------------------------------------------------
+    # Prediction mask
+    # ------------------------------------------------------------------------
 
-    if prediction_mask.ndim != 2:
+    try:
+        prediction_mask = np.squeeze(
+            np.asarray(
+                inference.prediction_mask
+            )
+        )
+
+        if prediction_mask.ndim != 2:
+            raise ValueError(
+                "Model prediction mask must be 2D."
+            )
+
+        prediction_mask = (
+            prediction_mask > 0
+        ).astype(
+            np.uint8
+        )
+
+    except Exception as exc:
         st.error(
-            "The model returned an invalid segmentation mask."
+            f"Invalid model mask: {exc}"
         )
         return
 
-    # -----------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Engineering analysis
-    # -----------------------------------------------------------------------
+    # ------------------------------------------------------------------------
 
     try:
+        road_area_pixels = int(
+            prediction_mask.shape[0]
+            * prediction_mask.shape[1]
+        )
+
         engineering_result = analyze_road(
             mask=prediction_mask,
-            road_area_pixels=int(
-                prediction_mask.size
-            ),
+            road_area_pixels=road_area_pixels,
             calibration=None,
             repair_rate_per_m2=None,
             currency="INR",
             min_area_pixels=10.0,
         )
 
+    except Exception as exc:
+        st.error(
+            f"Engineering analysis failed: {exc}"
+        )
+        return
+
+    # ------------------------------------------------------------------------
+    # Derived values
+    # ------------------------------------------------------------------------
+
+    records = build_defect_records(
+        engineering_result
+    )
+
+    confidence = safe_float(
+        get_value(
+            inference,
+            "confidence",
+            0.0,
+        )
+    )
+
+    health_score, condition = (
+        health_summary(
+            engineering_result
+        )
+    )
+
+    affected = affected_percentage(
+        engineering_result,
+        prediction_mask,
+    )
+
+    priority = maintenance_priority(
+        records,
+        affected,
+    )
+
+    needs_inspection = (
+        inspection_required(
+            records,
+            condition,
+            confidence,
+        )
+    )
+
+    # ------------------------------------------------------------------------
+    # Numbered overlay
+    # ------------------------------------------------------------------------
+
+    try:
         numbered_overlay = (
             make_numbered_defect_overlay(
                 inference.original_image,
@@ -1006,68 +1748,19 @@ def main() -> None:
             )
         )
 
-        # -----------------------------------------------------
-        # Road Defect Analysis
-        # -----------------------------------------------------
-
-        st.subheader(
-            "Road Defect Analysis"
+    except Exception as exc:
+        st.warning(
+            "Could not create numbered overlay: "
+            f"{exc}"
         )
 
-        col1, col2 = st.columns(2)
+        numbered_overlay = np.asarray(
+            inference.original_image
+        ).copy()
 
-        with col1:
-            display_image(
-                inference.original_image,
-                caption="Original Road Image",
-            )
-
-        with col2:
-            display_image(
-                numbered_overlay,
-                caption=(
-                    "Detected Defect Overlay — "
-                    "Numbers match measurements"
-                ),
-            )
-
-        st.caption(
-            "Numbers identify separate detected regions. "
-            "They match the engineering measurements and "
-            "severity assessment below."
-        )
-
-        # -----------------------------------------------------
-        # Inference Summary
-        # -----------------------------------------------------
-
-        st.subheader(
-            "Inference Summary"
-        )
-
-        display_inference_summary(
-            inference
-        )
-
-        # -----------------------------------------------------
-        # Probability Map
-        # -----------------------------------------------------
-
-        probability_visuals = (
-            make_probability_visualization(
-                inference.probability_map,
-                inference.original_image,
-            )
-        )
-
-        probability = np.asarray(
-            inference.probability_map,
-            dtype=np.float32,
-        )
-
-    # -----------------------------------------------------------------------
-    # Top-level tabs
-    # -----------------------------------------------------------------------
+    # =========================================================================
+    # TABS
+    # =========================================================================
 
     inspection_tab, advanced_tab = st.tabs(
         [
@@ -1076,213 +1769,504 @@ def main() -> None:
         ]
     )
 
-    # -----------------------------------------------------------------------
-    # Road Inspection
-    # -----------------------------------------------------------------------
+    # =========================================================================
+    # ROAD INSPECTION
+    # =========================================================================
 
     with inspection_tab:
 
-        st.header("Road Inspection")
-
-        st.metric(
-            "Road Condition",
-            condition,
-        )
-
-        m1, m2, m3, m4 = st.columns(4)
-
-        m1.metric(
-            "Overall Health Score",
-            (
-                f"{health_score:.1f}/100"
-                if health_score is not None
-                else "N/A"
-            ),
-        )
-
-        m2.metric(
-            "Number of Defects",
-            len(records),
-        )
-
-        m3.metric(
-            "High / Critical",
-            serious_count,
-        )
-
-        m4.metric(
-            "Road Affected",
-            f"{affected:.2f}%",
-        )
-
-        p1, p2 = st.columns(2)
-
-        p1.metric(
-            "Maintenance Priority",
-            priority,
-        )
-
-        p2.metric(
-            "Model Confidence",
-            f"{confidence:.1%}",
-        )
-
-        if needs_inspection:
-            st.warning(
-                "Field inspection is recommended based on "
-                "the current image-analysis result."
-            )
-        else:
-            st.success(
-                "No immediate field-inspection trigger was "
-                "identified from this image."
-            )
-
-        st.divider()
-
-        st.subheader(
-            "Serious Defect Locations"
+        st.header(
+            "Road Inspection"
         )
 
         st.caption(
-            "Defect numbers identify exact image locations. "
-            "Coordinates are image pixels, not geographic GPS coordinates."
+            "AI-assisted screening of road defects "
+            "from the uploaded image."
         )
 
-        c1, c2 = st.columns(2)
+        # ---------------------------------------------------------------------
+        # Main images
+        # ---------------------------------------------------------------------
 
-        with c1:
+        image_col, overlay_col = (
+            st.columns(2)
+        )
+
+        with image_col:
             display_image(
                 inference.original_image,
                 caption="Original road image",
             )
 
-        with c2:
+        with overlay_col:
             display_image(
                 numbered_overlay,
-                caption="Numbered defect map",
-            )
-
-        if records:
-            st.subheader(
-                "Detected Defects"
-            )
-
-            selected_id = st.selectbox(
-                "Inspect defect",
-                [
-                    record["id"]
-                    for record in records
-                ],
-                format_func=lambda x: (
-                    f"Defect #{x}"
+                caption=(
+                    "Detected defects — "
+                    "numbers match the measurements"
                 ),
-                key=f"defect_selector_{image_key}",
             )
 
-            selected = next(
-                item
-                for item in records
-                if item["id"] == selected_id
-            )
+        # ---------------------------------------------------------------------
+        # Summary metrics
+        # ---------------------------------------------------------------------
 
-            a1, a2, a3, a4 = st.columns(4)
+        st.subheader(
+            "Inspection Summary"
+        )
 
-            a1.metric(
-                "Severity",
-                selected["severity"].upper(),
-            )
+        metric1, metric2, metric3, metric4 = (
+            st.columns(4)
+        )
 
-            a2.metric(
-                "Severity Score",
-                f"{selected['score']:.1f}/100",
-            )
+        metric1.metric(
+            "Detected Defects",
+            f"{len(records):,}",
+        )
 
-            a3.metric(
-                "Area",
-                f"{selected['area_pixels']:,.0f} px²",
-            )
+        metric2.metric(
+            "Affected Area",
+            f"{affected:.2f}%",
+        )
 
-            a4.metric(
-                "Priority",
-                selected["priority"],
-            )
+        metric3.metric(
+            "Health Score",
+            (
+                f"{health_score:.2f}/100"
+                if health_score is not None
+                else "N/A"
+            ),
+        )
 
-            b1, b2 = st.columns(2)
+        metric4.metric(
+            "Model Confidence",
+            f"{confidence:.2%}",
+        )
 
-            with b1:
-                st.write(
-                    f"**Image location:** "
-                    f"({selected['centroid_x']:.1f}, "
-                    f"{selected['centroid_y']:.1f}) px"
-                )
+        # ---------------------------------------------------------------------
+        # Condition
+        # ---------------------------------------------------------------------
 
-                st.write(
-                    f"**Length:** "
-                    f"{selected['length_pixels']:.1f} px"
-                )
-
-                st.write(
-                    f"**Width:** "
-                    f"{selected['width_pixels']:.1f} px"
-                )
-
-            with b2:
-                if selected["area_m2"] is not None:
-                    st.write(
-                        f"**Physical area:** "
-                        f"{selected['area_m2']:.4f} m²"
-                    )
-                else:
-                    st.write(
-                        "**Physical area:** Not calibrated"
-                    )
-
-                if selected["explanation"]:
-                    st.write(
-                        selected["explanation"]
-                    )
-
-        else:
-            st.info(
-                "No defects passed the current segmentation threshold."
-            )
-
-        st.divider()
-
-        # -------------------------------------------------------------------
-        # 3D
-        # -------------------------------------------------------------------
-
-        st.header(
-            "Interactive 3D Road Inspection"
+        condition_text = (
+            condition.upper()
+            if condition
+            else "UNKNOWN"
         )
 
         st.info(
-            "The vertical axis is normalized visualization geometry. "
-            "It is not a physical depth measurement."
+            f"Road condition: {condition_text}"
         )
 
-        visualization_key = (
+        if needs_inspection:
+            st.warning(
+                "Field inspection is recommended "
+                "before maintenance decisions."
+            )
+        else:
+            st.success(
+                "No immediate high-priority "
+                "inspection trigger was identified."
+            )
+
+        # ---------------------------------------------------------------------
+        # Defect measurements
+        # ---------------------------------------------------------------------
+
+        st.subheader(
+            "Detected Defects"
+        )
+
+        if not records:
+            st.success(
+                "No defects detected at the selected threshold."
+            )
+
+        else:
+            st.caption(
+                "Measurements are in pixels because no "
+                "pixel-to-meter calibration was supplied."
+            )
+
+            for item in records:
+
+                with st.expander(
+                    (
+                        f"Defect {item['id']} — "
+                        f"{item['priority']} "
+                        f"(score {item['score']:.2f})"
+                    ),
+                    expanded=(
+                        item["id"] == 1
+                    ),
+                ):
+                    d1, d2, d3 = (
+                        st.columns(3)
+                    )
+
+                    d1.metric(
+                        "Area",
+                        f"{item['area_pixels']:.2f} px²",
+                    )
+
+                    d2.metric(
+                        "Length",
+                        f"{item['length_pixels']:.2f} px",
+                    )
+
+                    d3.metric(
+                        "Width",
+                        f"{item['width_pixels']:.2f} px",
+                    )
+
+                    d4, d5, d6 = (
+                        st.columns(3)
+                    )
+
+                    d4.metric(
+                        "Centroid X",
+                        f"{item['centroid_x']:.2f}",
+                    )
+
+                    d5.metric(
+                        "Centroid Y",
+                        f"{item['centroid_y']:.2f}",
+                    )
+
+                    d6.metric(
+                        "Severity",
+                        item["severity"].upper(),
+                    )
+
+                    if item["explanation"]:
+                        st.caption(
+                            item["explanation"]
+                        )
+
+        # ---------------------------------------------------------------------
+        # Basic explanation
+        # ---------------------------------------------------------------------
+
+        with st.expander(
+            "What do these results mean?",
+            expanded=False,
+        ):
+            st.write(
+                "RoadXAI first segments pixels that appear "
+                "to belong to road defects. Connected regions "
+                "are then measured individually."
+            )
+
+            st.write(
+                "Area describes how many image pixels belong "
+                "to a detected region. Length and width describe "
+                "its estimated geometric dimensions in the image."
+            )
+
+            st.write(
+                "The health score is an image-based indicator. "
+                "It is not a structural safety certification."
+            )
+
+            st.write(
+                "Physical meters, square meters and repair costs "
+                "require validated calibration information."
+            )
+
+    # =========================================================================
+    # ADVANCED ANALYSIS
+    # =========================================================================
+
+    with advanced_tab:
+
+        st.header(
+            "Advanced Analysis"
+        )
+
+        # ---------------------------------------------------------------------
+        # Inference summary
+        # ---------------------------------------------------------------------
+
+        display_inference_summary(
+            inference
+        )
+
+        # ---------------------------------------------------------------------
+        # Probability map
+        # ---------------------------------------------------------------------
+
+        st.subheader(
+            "Defect Probability"
+        )
+
+        probability_visuals = (
+            make_probability_visualization(
+                inference.probability_map,
+                inference.original_image,
+            )
+        )
+
+        p1, p2, p3 = st.columns(3)
+
+        with p1:
+            display_image(
+                probability_visuals[
+                    "grayscale"
+                ],
+                caption="Probability intensity",
+            )
+
+        with p2:
+            display_image(
+                probability_visuals[
+                    "color"
+                ],
+                caption="Probability heatmap",
+            )
+
+        with p3:
+            display_image(
+                probability_visuals[
+                    "overlay"
+                ],
+                caption="Probability over original image",
+            )
+
+        st.caption(
+            f"Segmentation threshold: {threshold:.2f}. "
+            "Higher probability means stronger model confidence "
+            "that a pixel belongs to a defect."
+        )
+
+        # ---------------------------------------------------------------------
+        # Engineering summary
+        # ---------------------------------------------------------------------
+
+        st.subheader(
+            "Engineering Analysis"
+        )
+
+        e1, e2, e3, e4 = (
+            st.columns(4)
+        )
+
+        e1.metric(
+            "Defects",
+            f"{len(records):,}",
+        )
+
+        e2.metric(
+            "Affected Area",
+            f"{affected:.2f}%",
+        )
+
+        e3.metric(
+            "Condition",
+            condition.upper(),
+        )
+
+        e4.metric(
+            "Priority",
+            priority.upper(),
+        )
+
+        # ---------------------------------------------------------------------
+        # Severity distribution
+        # ---------------------------------------------------------------------
+
+        severity_counts = {
+            "Low": 0,
+            "Moderate": 0,
+            "High": 0,
+            "Critical": 0,
+        }
+
+        for item in records:
+            level = item[
+                "priority"
+            ]
+
+            if level in severity_counts:
+                severity_counts[
+                    level
+                ] += 1
+
+        st.write(
+            "### Severity Distribution"
+        )
+
+        for level, count in severity_counts.items():
+            st.write(
+                f"**{level}:** {count}"
+            )
+
+        # ---------------------------------------------------------------------
+        # Grad-CAM
+        # ---------------------------------------------------------------------
+
+        st.subheader(
+            "Explainable AI"
+        )
+
+        st.caption(
+            "Grad-CAM highlights image regions that contributed "
+            "to the model prediction. It explains model attention; "
+            "it does not measure physical damage."
+        )
+
+        if st.button(
+            "Generate Grad-CAM Explanation",
+            key=f"generate_xai_{image_key}",
+        ):
+            try:
+                with st.spinner(
+                    "Generating Grad-CAM..."
+                ):
+                    xai_result = run_xai(
+                        model,
+                        inference.input_tensor,
+                    )
+
+                st.session_state[
+                    "xai_result"
+                ] = xai_result
+
+                st.session_state[
+                    "xai_image_key"
+                ] = image_key
+
+                st.success(
+                    "Grad-CAM explanation generated."
+                )
+
+            except Exception as exc:
+                st.error(
+                    f"XAI generation failed: {exc}"
+                )
+
+        xai_result = st.session_state.get(
+            "xai_result"
+        )
+
+        if (
+            xai_result is not None
+            and st.session_state.get(
+                "xai_image_key"
+            )
+            == image_key
+        ):
+
+            x1, x2 = st.columns(2)
+
+            with x1:
+                display_image(
+                    xai_result["heatmap"],
+                    caption=(
+                        "Grad-CAM attention"
+                    ),
+                )
+
+            with x2:
+                display_image(
+                    xai_result["overlay"],
+                    caption=(
+                        "Grad-CAM overlay"
+                    ),
+                )
+
+            heatmap = np.asarray(
+                xai_result["heatmap"],
+                dtype=np.float32,
+            )
+
+            a1, a2, a3 = (
+                st.columns(3)
+            )
+
+            a1.metric(
+                "Mean Attention",
+                f"{float(heatmap.mean()):.3f}",
+            )
+
+            a2.metric(
+                "Maximum Attention",
+                f"{float(heatmap.max()):.3f}",
+            )
+
+            a3.metric(
+                "Pixels > 0.5",
+                f"{int(np.count_nonzero(heatmap >= 0.5)):,}",
+            )
+
+            target_layer = xai_result[
+                "target_layer"
+            ]
+
+            st.caption(
+                "Method: Grad-CAM | "
+                "Target layer: "
+                f"{target_layer.__class__.__name__}"
+            )
+
+        else:
+            st.info(
+                "Generate Grad-CAM to inspect model attention."
+            )
+
+        # ---------------------------------------------------------------------
+        # 3D visualization
+        # ---------------------------------------------------------------------
+
+        st.subheader(
+            "Interactive 3D Visualization"
+        )
+
+        st.caption(
+            "The 3D model is aligned with the uploaded image "
+            "and segmentation mask. Vertical geometry is "
+            "normalized visualization depth, not physical depth."
+        )
+
+        current_mask = np.asarray(
+            prediction_mask,
+            dtype=np.uint8,
+        )
+
+        current_3d_key = (
             f"{image_key}|"
+            f"{current_mask.shape}|"
+            f"{int(np.count_nonzero(current_mask))}|"
+            f"{float(current_mask.mean()):.8f}|"
             f"{display_mode}|"
-            f"{visual_depth:.2f}|"
+            f"{visual_depth}|"
             f"{show_markers}|"
             f"{show_boundaries}"
         )
 
+        if st.session_state.get(
+            "visualization_key"
+        ) != current_3d_key:
+            st.session_state.pop(
+                "visualization_result",
+                None,
+            )
+
         if st.button(
-            "Build / Refresh 3D Model",
+            "Generate 3D Defect Visualization",
             type="primary",
-            key=f"build_3d_{image_key}",
+            key=f"generate_3d_{image_key}",
         ):
             try:
+                st.session_state.pop(
+                    "visualization_result",
+                    None,
+                )
+
                 with st.spinner(
                     "Building interactive 3D inspection model..."
                 ):
                     result = generate_3d(
                         inference,
-                        prediction_mask,
+                        current_mask,
                         engineering_result,
                         display_mode,
                         visual_depth,
@@ -1296,7 +2280,11 @@ def main() -> None:
 
                 st.session_state[
                     "visualization_key"
-                ] = visualization_key
+                ] = current_3d_key
+
+                st.success(
+                    "3D visualization generated."
+                )
 
             except Exception as exc:
                 st.error(
@@ -1313,426 +2301,170 @@ def main() -> None:
             visualization_result is not None
             and st.session_state.get(
                 "visualization_key"
-            ) == visualization_key
+            )
+            == current_3d_key
         ):
 
-            figure = visualization_result[
+            figure = visualization_result.get(
                 "figure"
-            ]
-
-            st.plotly_chart(
-                figure,
-                use_container_width=True,
-                config={
-                    "displaylogo": False,
-                    "scrollZoom": True,
-                    "responsive": True,
-                },
-                key=f"plot3d_{image_key}",
             )
 
-            heightmap = (
-                visualization_result.get(
-                    "heightmap"
+            if figure is not None:
+                st.plotly_chart(
+                    figure,
+                    use_container_width=True,
+                    config={
+                        "displaylogo": False,
+                        "scrollZoom": True,
+                        "responsive": True,
+                    },
+                    key=(
+                        f"plot3d_{image_key}"
+                    ),
                 )
+
+            heightmap = visualization_result.get(
+                "heightmap"
             )
 
-            mesh = (
-                visualization_result.get(
-                    "mesh"
-                )
+            mesh = visualization_result.get(
+                "mesh"
             )
 
-            s1, s2, s3, s4 = st.columns(4)
+            m1, m2, m3, m4 = (
+                st.columns(4)
+            )
 
             if heightmap is not None:
-                s1.metric(
+                m1.metric(
                     "3D Grid",
                     (
                         f"{heightmap.shape[0]} × "
                         f"{heightmap.shape[1]}"
                     ),
                 )
+
+                m4.metric(
+                    "Max Visual Depth",
+                    f"{float(np.max(heightmap)):.3f}",
+                )
+
             else:
-                s1.metric(
+                m1.metric(
                     "3D Grid",
                     "N/A",
                 )
 
             if mesh is not None:
-                s2.metric(
+                m2.metric(
                     "Vertices",
                     f"{len(mesh.vertices):,}",
                 )
 
-                s3.metric(
+                m3.metric(
                     "Faces",
                     f"{len(mesh.faces):,}",
                 )
 
-            if heightmap is not None:
-                s4.metric(
-                    "Max Visual Depth",
-                    f"{float(np.max(heightmap)):.3f}",
+            else:
+                m2.metric(
+                    "Vertices",
+                    "N/A",
+                )
+
+                m3.metric(
+                    "Faces",
+                    "N/A",
                 )
 
             st.caption(
-                "Interaction: drag to rotate, scroll to zoom, "
-                "right-drag to pan, and use the Plotly modebar "
-                "for camera/reset/export controls."
+                "Drag to rotate. Scroll to zoom. "
+                "Right-drag to pan. Use the Plotly controls "
+                "to reset the camera or export the visualization."
             )
-
-        else:
-            st.caption(
-                "Build the 3D model to inspect the detected "
-                "damage spatially."
-            )
-
-        st.divider()
-
-    # -----------------------------------------------------------------------
-    # Advanced Analysis
-    # -----------------------------------------------------------------------
-
-    with advanced_tab:
-
-        st.header(
-            "Advanced Analysis"
-        )
-
-        display_inference_summary(
-            inference
-        )
-
-        st.subheader(
-            "Segmentation"
-        )
-
-        c1, c2 = st.columns(2)
-
-        with c1:
-            display_image(
-                inference.original_image,
-                caption="Original image",
-            )
-
-        with c2:
-            display_image(
-                numbered_overlay,
-                caption="Numbered segmentation",
-            )
-
-        st.subheader(
-            "Probability Map"
-        )
-
-        probability = np.squeeze(
-            np.asarray(
-                inference.probability_map,
-                dtype=np.float32,
-            )
-        )
-
-        probability = np.clip(
-            probability,
-            0.0,
-            1.0,
-        )
-
-        prob_u8 = (
-            probability * 255.0
-        ).astype(np.uint8)
-
-        prob_color = cv2.applyColorMap(
-            prob_u8,
-            cv2.COLORMAP_TURBO,
-        )
-
-        prob_color = cv2.cvtColor(
-            prob_color,
-            cv2.COLOR_BGR2RGB,
-        )
-
-        if prob_color.shape[:2] != (
-            inference.original_image.shape[:2]
-        ):
-            prob_color = cv2.resize(
-                prob_color,
-                (
-                    inference.original_image.shape[1],
-                    inference.original_image.shape[0],
-                ),
-                interpolation=cv2.INTER_LINEAR,
-            )
-
-        prob_overlay = cv2.addWeighted(
-            inference.original_image,
-            0.55,
-            prob_color,
-            0.45,
-            0,
-        )
-
-        q1, q2, q3 = st.columns(3)
-
-        with q1:
-            display_image(
-                prob_u8,
-                caption="Probability intensity",
-            )
-
-        with q2:
-            display_image(
-                prob_color,
-                caption="Probability heatmap",
-            )
-
-        with q3:
-            display_image(
-                prob_overlay,
-                caption="Probability overlay",
-            )
-
-        q1, q2, q3, q4 = st.columns(4)
-
-        q1.metric(
-            "Mean",
-            f"{float(probability.mean()):.3f}",
-        )
-
-        q2.metric(
-            "Maximum",
-            f"{float(probability.max()):.3f}",
-        )
-
-        q3.metric(
-            "Above Threshold",
-            f"{int(np.count_nonzero(probability >= threshold)):,}",
-        )
-
-        q4.metric(
-            "Threshold",
-            f"{threshold:.2f}",
-        )
-
-        st.subheader(
-            "Engineering Measurements"
-        )
-
-        if records:
-
-            for record in records:
-                with st.expander(
-                    (
-                        f"Defect #{record['id']} — "
-                        f"{record['severity'].upper()} — "
-                        f"{record['priority']}"
-                    ),
-                    expanded=False,
-                ):
-                    e1, e2, e3 = st.columns(3)
-
-                    e1.metric(
-                        "Area",
-                        f"{record['area_pixels']:,.1f} px²",
-                    )
-
-                    e2.metric(
-                        "Length",
-                        f"{record['length_pixels']:.1f} px",
-                    )
-
-                    e3.metric(
-                        "Width",
-                        f"{record['width_pixels']:.1f} px",
-                    )
-
-                    st.write(
-                        f"Centroid: "
-                        f"({record['centroid_x']:.1f}, "
-                        f"{record['centroid_y']:.1f}) px"
-                    )
 
         else:
             st.info(
-                "No engineering defect records are available."
+                "Generate the 3D model to inspect detected "
+                "damage spatially."
             )
+
+        # ---------------------------------------------------------------------
+        # Road decision summary
+        # ---------------------------------------------------------------------
 
         st.subheader(
-            "Explainable AI"
+            "Road Decision Summary"
         )
 
-        if st.button(
-            "Generate Grad-CAM",
-            key=f"generate_xai_{image_key}",
-        ):
-            try:
-                with st.spinner(
-                    "Generating Grad-CAM..."
-                ):
-                    xai_result = run_gradcam(
-                        model,
-                        inference.input_tensor,
-                    )
+        r1, r2 = st.columns(2)
 
-                st.session_state[
-                    "xai_result"
-                ] = xai_result
-
-                st.session_state[
-                    "xai_image_key"
-                ] = image_key
-
-            except Exception as exc:
-                st.error(
-                    f"XAI generation failed: {exc}"
-                )
-
-        xai_result = (
-            st.session_state.get(
-                "xai_result"
+        with r1:
+            st.write(
+                f"**Condition:** {condition}"
             )
+
+            st.write(
+                (
+                    f"**Health score:** "
+                    f"{health_score:.2f}/100"
+                    if health_score is not None
+                    else "**Health score:** N/A"
+                )
+            )
+
+            st.write(
+                f"**Affected road area:** "
+                f"{affected:.2f}%"
+            )
+
+        with r2:
+            st.write(
+                f"**Maintenance priority:** "
+                f"{priority}"
+            )
+
+            st.write(
+                "**Field inspection:** "
+                f"{'Required' if needs_inspection else 'Not immediately indicated'}"
+            )
+
+            st.write(
+                f"**Model confidence:** "
+                f"{confidence:.2%}"
+            )
+
+        # ---------------------------------------------------------------------
+        # Report
+        # ---------------------------------------------------------------------
+
+        st.divider()
+
+        render_report(
+            inference,
+            engineering_result,
+            uploaded_file,
+            image_key,
         )
 
-                if st.session_state.get(
-                    "xai_image_key"
-                ) != image_key:
-                    xai_result = None
+    # =========================================================================
+    # FOOTER
+    # =========================================================================
 
-                visualization_result = (
-                    st.session_state.get(
-                        "visualization_result"
-                    )
-                )
+    st.divider()
 
-                if st.session_state.get(
-                    "visualization_image_key"
-                ) != current_3d_key:
-                    visualization_result = None
+    st.caption(
+        "RoadXAI is an AI-assisted road-inspection "
+        "screening and decision-support system. "
+        "Automated results should be validated through "
+        "appropriate field inspection before engineering "
+        "or maintenance decisions."
+    )
 
-                REPORT_DIR.mkdir(
-                    parents=True,
-                    exist_ok=True,
-                )
 
-                with st.spinner(
-                    "Generating RoadXAI report..."
-                ):
-                    report = generate_report(
-                        engineering_result=(
-                            engineering_result
-                        ),
-                        inference_result=inference,
-                        xai_result=xai_result,
-                        visualization_result=(
-                            visualization_result
-                        ),
-                        image_name=(
-                            uploaded_file.name
-                        ),
-                        title=(
-                            "RoadXAI Road Defect "
-                            "Assessment"
-                        ),
-                    )
-
-                    report_base = (
-                        REPORT_DIR
-                        / Path(
-                            uploaded_file.name
-                        ).stem
-                    )
-
-                    json_path = (
-                        save_json_report(
-                            report,
-                            report_base.with_suffix(
-                                ".json"
-                            ),
-                        )
-                    )
-
-                    text_path = (
-                        save_text_report(
-                            report,
-                            report_base.with_suffix(
-                                ".txt"
-                            ),
-                        )
-                    )
-
-                    pdf_path = (
-                        generate_pdf_report(
-                            report,
-                            report_base.with_suffix(
-                                ".pdf"
-                            ),
-                        )
-                    )
-
-                st.session_state[
-                    "report"
-                ] = report
-
-                st.success(
-                    "RoadXAI report generated successfully."
-                )
-
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.download_button(
-                        "Download JSON",
-                        data=(
-                            json_path.read_bytes()
-                        ),
-                        file_name=json_path.name,
-                        mime="application/json",
-                        key=f"download_json_{image_key}",
-                    )
-
-                with col2:
-                    st.download_button(
-                        "Download TXT",
-                        data=(
-                            text_path.read_bytes()
-                        ),
-                        file_name=text_path.name,
-                        mime="text/plain",
-                        key=f"download_txt_{image_key}",
-                    )
-
-                with col3:
-                    st.download_button(
-                        "Download PDF",
-                        data=(
-                            pdf_path.read_bytes()
-                        ),
-                        file_name=pdf_path.name,
-                        mime="application/pdf",
-                        key=f"download_pdf_{image_key}",
-                    )
-
-                with st.expander(
-                    "Report Preview",
-                    expanded=True,
-                ):
-                    st.text(
-                        render_report_text(
-                            report
-                        )
-                    )
-
-            except Exception as exc:
-                st.error(
-                    "Report generation failed: "
-                    f"{exc}"
-                )
-
-    except Exception as exc:
-        st.error(
-            f"Application error: {exc}"
-        )
+# ============================================================================
+# ENTRY POINT
+# ============================================================================
 
 
 if __name__ == "__main__":
