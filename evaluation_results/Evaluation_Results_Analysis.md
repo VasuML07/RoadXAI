@@ -20,16 +20,8 @@ flowchart LR
 
 The uploaded JSON files contain evaluation results for **928 samples total** across the three datasets.
 
-## 2. Results Table
 
-| Dataset | Samples | Accuracy | Precision | Recall | F1 | IoU | Dice | Inference |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-
-| Pothole_Segmentation_YOLOv8 | 156 | 0.8453 | 0.5330 | 0.3565 | 0.4273 | 0.2717 | 0.4273 | 155.56 ms/sample |
-| PUBLIC_POTHOLE_DATASET | 200 | 0.8823 | 0.8082 | 0.6210 | 0.7023 | 0.5412 | 0.7023 | 146.87 ms/sample |
-| CRACK500 | 572 | 0.9850 | 0.9299 | 0.8145 | 0.8684 | 0.7674 | 0.8684 | 206.20 ms/sample |
-
-## 3. What the Metrics Mean
+## 2. What the Metrics Mean
 
 ```mermaid
 flowchart TD
@@ -57,7 +49,7 @@ flowchart TD
 - **Dice:** overlap score; for this binary formulation it is numerically equal to F1.
 - **Inference time:** average forward-pass time per sample reported by the evaluator.
 
-## 4. CRACK500 — Strongest Result
+## 3. CRACK500 — Strongest Result
 
 ```mermaid
 flowchart LR
@@ -79,7 +71,7 @@ This is the **best-performing dataset** in the uploaded results.
 
 Overall, the model is performing substantially better on **CRACK500 crack segmentation** than on the two pothole datasets.
 
-## 5. PUBLIC POTHOLE DATASET — Moderate/Good Result
+## 4. PUBLIC POTHOLE DATASET — Moderate/Good Result
 
 ```mermaid
 flowchart LR
@@ -100,7 +92,7 @@ This is the **middle result**.
 
 The main weakness here is **recall**, rather than excessive false positives.
 
-## 6. Pothole_Segmentation_YOLOv8 — Weakest Result
+## 5. Pothole_Segmentation_YOLOv8 — Weakest Result
 
 ```mermaid
 flowchart LR
@@ -129,7 +121,7 @@ Precision is also only moderate, so the model has both:
 
 Therefore, the model's pothole segmentation generalization is currently much weaker on this dataset than on CRACK500.
 
-## 7. Dataset Comparison
+## 6. Dataset Comparison
 
 ```mermaid
 flowchart TD
@@ -154,7 +146,7 @@ flowchart TD
 
 **IoU is the most useful headline metric here for segmentation quality because it directly measures region overlap.**
 
-## 8. Precision vs Recall — What Your Model Is Doing
+## 7. Precision vs Recall — What Your Model Is Doing
 
 ```mermaid
 flowchart LR
@@ -183,7 +175,7 @@ The model is fairly conservative. When it predicts pothole pixels, it is usually
 
 This is the main problem area. The model both predicts imperfect regions and misses substantial portions of the actual potholes.
 
-## 9. Why Accuracy Looks Better Than IoU
+## 8. Why Accuracy Looks Better Than IoU
 
 ```mermaid
 flowchart LR
@@ -207,7 +199,7 @@ This is visible in the pothole results:
 
 For your research paper, emphasize **IoU, Dice/F1, precision, and recall**, not accuracy alone.
 
-## 10. Inference Speed
+## 9. Inference Speed
 
 ```mermaid
 flowchart LR
@@ -239,7 +231,7 @@ Approximate inverse throughput, if interpreted simply as one sample per reported
 
 These are derived from the reported timings; they are not an independently benchmarked FPS measurement.
 
-## 11. What This Says About Your Model
+## 10. What This Says About Your Model
 
 ```mermaid
 flowchart TD
@@ -267,7 +259,7 @@ Your model is **not uniformly strong across defect types**.
 
 The pattern strongly suggests that the model has difficulty with **pothole appearance/annotation characteristics and/or dataset distribution**, rather than having a general inability to perform segmentation. This is an interpretation of the cross-dataset results, not something the JSON files can prove by themselves.
 
-## 12. Important Limitation of These Results
+## 11. Important Limitation of These Results
 
 The uploaded evaluation JSON files contain:
 
@@ -300,7 +292,7 @@ batch size used for timing
 
 Therefore, these results are sufficient to describe **overall pixel-level segmentation performance**, but not to diagnose the exact cause of the weaker pothole performance.
 
-## 13. Research-Paper Summary
+## 12. Research-Paper Summary
 
 ```mermaid
 flowchart LR
@@ -323,7 +315,7 @@ A concise interpretation for the project:
 
 > **The RoadXAI segmentation model demonstrates strong performance on CRACK500, moderate performance on the Public Pothole Dataset, and substantially weaker performance on the Pothole Segmentation YOLOv8 dataset. The cross-dataset results indicate that segmentation performance is strongly dependent on the visual and annotation characteristics of the target dataset.**
 
-## 14. Final Scorecard
+## 13. Final Scorecard
 
 | Aspect | Assessment | Evidence |
 |---|---|---|
