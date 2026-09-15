@@ -244,42 +244,8 @@ The main `evaluate_model()` path reports average inference time per sample and e
 
 ---
 
-## 14. Evaluation Pipeline
 
-```mermaid
-flowchart TD
-    A[Trained Model]
-    --> B[model.eval()]
-
-    B --> C[Evaluation DataLoader]
-    C --> D[Batch Preparation]
-    D --> E[Forward Pass]
-    E --> F[Logits]
-
-    F --> G[Binary Predictions]
-    G --> H[Confusion Matrix]
-
-    H --> I[Accuracy]
-    H --> J[Precision]
-    H --> K[Recall]
-    H --> L[F1]
-    H --> M[IoU]
-    H --> N[Dice]
-
-    E --> O[Inference Latency]
-
-    I --> P[EvaluationResult]
-    J --> P
-    K --> P
-    L --> P
-    M --> P
-    N --> P
-    O --> P
-```
-
----
-
-## 15. Model Comparison
+## 14. Model Comparison
 
 ```mermaid
 flowchart LR
@@ -295,7 +261,7 @@ The comparison utility can rank models using a selected metric, with `f1` as the
 
 ---
 
-## 16. Evaluation Results
+## 15. Evaluation Results
 
 ```mermaid
 flowchart TD
@@ -315,7 +281,7 @@ Results can be converted to a dictionary and saved as formatted JSON.
 
 ---
 
-## 17. Prediction Storage
+## 16. Prediction Storage
 
 ```mermaid
 flowchart LR
@@ -331,7 +297,7 @@ Prediction tensors can be saved and loaded independently for later analysis.
 
 ---
 
-## 18. RoadXAI Pipeline Connection
+## 17. RoadXAI Pipeline Connection
 
 ```mermaid
 flowchart LR
@@ -354,7 +320,7 @@ Evaluation provides the quantitative evidence that the segmentation model is per
 
 ---
 
-## 19. Why This Module Matters
+## 18. Why This Module Matters
 
 ```mermaid
 flowchart LR
@@ -390,7 +356,7 @@ Inference Performance
 
 ---
 
-## 20. Research-Paper View
+## 19. Research-Paper View
 
 ```mermaid
 flowchart TD
