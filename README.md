@@ -18,22 +18,3 @@
 
 ---
 
-## What is RoadXAI?
-
-RoadXAI converts road images into an interpretable inspection workflow.
-
-```mermaid
-flowchart LR
-    A[Road Image] --> B[Preprocess]
-    B --> C[U-Net Segmentation]
-    C --> D[Defect Mask]
-
-    D --> E[Engineering]
-    D --> F[XAI]
-    D --> G[3D Visualization]
-
-    E --> H[Inspection Result]
-    F --> H
-    G --> H
-
-    H --> I[JSON / TXT / PDF]
