@@ -1,9 +1,3 @@
-"""
-RoadXAI 3D Visualization Package.
-
-Provides image-aligned 3D road-defect visualization utilities.
-"""
-
 from .module import (
     HeightMapResult,
     MeshResult,
